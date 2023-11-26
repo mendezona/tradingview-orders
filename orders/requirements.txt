@@ -1,2 +1,3 @@
 requests
-python-kucoin
+kucoin-python
+flake8
