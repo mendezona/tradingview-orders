@@ -24,6 +24,8 @@ How to start project:
 - . venv37/bin/activate
 - Install AWS Chalice - https://github.com/aws/chalice
 - python3 -m pip install chalice
+- Install package dependencies
+- pip3 install -r requirements.txt
 - Run project locally
 - chalice local
 
@@ -35,3 +37,11 @@ How to start project:
   region=YOUR_REGION (such as us-west-2, us-west-1, etc)
 - Deploy server
 - chalice deploy
+
+Accounts:
+
+- Setup personal take rates, fill in blanks, etc by searching for <insert>
+
+Kucoin:
+
+- Add crendentils to the constants file in the relevant exchange
