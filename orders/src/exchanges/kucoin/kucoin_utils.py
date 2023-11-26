@@ -1,18 +1,13 @@
 from decimal import ROUND_DOWN, Decimal
 
 from kucoin.client import Market, Trade, User
-from src.constants import (
-    capital_to_deploy_percentage,
-    development_mode,
-    tax_rate,
-)
+from src.constants import capital_to_deploy_percentage, development_mode
 from src.exchanges.kucoin.kucoin_constants import (
     api_key,
     api_passphrase,
     api_secret,
     base_url,
     preferred_stablecoin,
-    tax_pair,
     trade_account,
     tradingview_kucoin_inverse_pairs,
     tradingview_kucoin_symbols,
@@ -66,23 +61,16 @@ def submit_pair_trade_order(
             )
         if base_currency_inverse == preferred_stablecoin:
             print("NO CONVERSION TO STABLECOIN FOUND - SUBMIT BUY ORDER")
-            submit_market_order(
+            submit_market_order_custom_percentage(
                 kucoin_inverse_symbol, True, capital_percentage_to_deploy=1
             )
         elif quote_currency_inverse == preferred_stablecoin:
             print("NO CONVERSION TO STABLECOIN FOUND - SUBMIT SELL ORDER")
-            submit_market_order(
+            submit_market_order_custom_percentage(
                 kucoin_inverse_symbol, False, capital_percentage_to_deploy=1
             )
 
-        profit_loss_amount = calculate_profit_loss(kucoin_inverse_symbol)
-        tax_amount = profit_loss_amount * tax_rate
-        print("tax_amount", profit_loss_amount, "\n")
-
-        if tax_amount > 0:
-            convert_capital_gains_to_usdc(tax_amount)
-
-    submit_market_order(
+    submit_market_order_custom_percentage(
         kucoin_symbol,
         True,
         capital_to_deploy,
@@ -135,7 +123,7 @@ def get_most_recent_inverse_fill_to_stablecoin(
 
 # Sell all holdings of a symbol using a Market Order.
 # Default is aSell Side Order
-def submit_market_order(
+def submit_market_order_custom_percentage(
     kucoin_symbol, buy_side_order=True, capital_percentage_to_deploy=1
 ):
     base_currency, quote_currency = get_base_and_quote_currencies(
@@ -238,12 +226,64 @@ def calculate_profit_loss(kucoin_symbol):
 
 
 # Convert CGT to USDC for easier tracking, and manual withdrawal later
-def convert_capital_gains_to_usdc(tax_amount):
-    client = Trade(api_key, api_secret, api_passphrase)
-    order_id = client.create_market_order(
-        tax_pair, "BUY", size=str(tax_amount)
+def submit_market_order_custom_amount(
+    kucoin_symbol, buy_side_order=True, capital_amount_to_deploy=0
+):
+    base_currency, quote_currency = get_base_and_quote_currencies(
+        kucoin_symbol
     )
-    print("Converted CGT:", order_id, "\n")
+    print(
+        "currency search", quote_currency if buy_side_order else base_currency
+    )
+    balance = (
+        get_available_balance(quote_currency)
+        if buy_side_order
+        else get_available_balance(base_currency)
+    )
+    if not float(balance) <= float(capital_amount_to_deploy):
+        return
+    base_increment, quote_increment = get_symbol_increments(kucoin_symbol)
+    funds_to_deploy = Decimal(capital_amount_to_deploy)
+    order_type = "buy" if buy_side_order else "sell"
+    symbol_minimum_increment = (
+        Decimal(base_increment) if buy_side_order else Decimal(quote_increment)
+    )
+    # Round down the max order size to the nearest valid increment
+    funds_to_deploy = funds_to_deploy.quantize(
+        symbol_minimum_increment, rounding=ROUND_DOWN
+    )
+    print("order_side: ", order_type)
+    print("capital %: ", capital_amount_to_deploy)
+    print("funds_to_deploy", funds_to_deploy, "\n")
+
+    # Remember to use size instead of funds if you want denomination
+    # in base currency
+    if funds_to_deploy > 0:
+        client_trade = (
+            Trade(api_key, api_secret, api_passphrase)
+            if not development_mode
+            else Trade(
+                api_key,
+                api_secret,
+                api_passphrase,
+                is_sandbox=True,
+                url=f"{base_url}/api/v1/orders/test",
+            )
+        )
+        if buy_side_order:
+            order_response = client_trade.create_market_order(
+                symbol=str(kucoin_symbol),
+                side="buy",
+                funds=str(funds_to_deploy),
+            )
+            print("Market buy order submitted: \n", order_response, "\n")
+        else:
+            order_response = client_trade.create_market_order(
+                symbol=str(kucoin_symbol),
+                side="sell",
+                size=str(funds_to_deploy),
+            )
+            print("Market sell order submitted: \n", order_response, "\n")
 
 
 # Get available coin balance, can specify base or quote symbol
