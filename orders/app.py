@@ -9,7 +9,7 @@ def index():
     return {"hello": "world"}
 
 
-@app.route("/pairbuyalerts", methods=["POST"])
+@app.route("/pairtradealerts", methods=["POST"])
 def index():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body

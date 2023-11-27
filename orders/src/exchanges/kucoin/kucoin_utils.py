@@ -42,6 +42,7 @@ def get_account_balance():
 def submit_pair_trade_order(
     tradingview_symbol,
     capital_to_deploy=capital_to_deploy_percentage,
+    calculate_tax=True,
 ):
     # Check if there is an inverse order open
     kucoin_symbol = tradingview_kucoin_symbols[tradingview_symbol]
@@ -75,12 +76,13 @@ def submit_pair_trade_order(
                 kucoin_inverse_symbol, False, capital_percentage_to_deploy=1
             )
 
-        profit_loss_amount = calculate_profit_loss(kucoin_inverse_symbol)
-        tax_amount = profit_loss_amount * tax_rate
-        print("tax_amount", profit_loss_amount, "\n")
+        if calculate_tax:
+            profit_loss_amount = calculate_profit_loss(kucoin_inverse_symbol)
+            tax_amount = profit_loss_amount * tax_rate
+            print("tax_amount", profit_loss_amount, "\n")
 
-        if tax_amount > 0:
-            submit_market_order_custom_amount(tax_pair, True, tax_amount)
+            if tax_amount > 0:
+                submit_market_order_custom_amount(tax_pair, True, tax_amount)
 
     submit_market_order_custom_percentage(
         kucoin_symbol,
