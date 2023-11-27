@@ -1,13 +1,18 @@
 from decimal import ROUND_DOWN, Decimal
 
 from kucoin.client import Market, Trade, User
-from src.constants import capital_to_deploy_percentage, development_mode
+from src.constants import (
+    capital_to_deploy_percentage,
+    development_mode,
+    tax_rate,
+)
 from src.exchanges.kucoin.kucoin_constants import (
     api_key,
     api_passphrase,
     api_secret,
     base_url,
     preferred_stablecoin,
+    tax_pair,
     trade_account,
     tradingview_kucoin_inverse_pairs,
     tradingview_kucoin_symbols,
@@ -69,6 +74,13 @@ def submit_pair_trade_order(
             submit_market_order_custom_percentage(
                 kucoin_inverse_symbol, False, capital_percentage_to_deploy=1
             )
+
+        profit_loss_amount = calculate_profit_loss(kucoin_inverse_symbol)
+        tax_amount = profit_loss_amount * tax_rate
+        print("tax_amount", profit_loss_amount, "\n")
+
+        if tax_amount > 0:
+            submit_market_order_custom_amount(tax_pair, True, tax_amount)
 
     submit_market_order_custom_percentage(
         kucoin_symbol,
@@ -185,7 +197,10 @@ def submit_market_order_custom_percentage(
 
 # Calculate the profit/loss made from previous trade
 # (assuming Market Order for both)
-def calculate_profit_loss(kucoin_symbol):
+# Change stablecoin to other stablecoin or pair
+def calculate_profit_loss(
+    kucoin_symbol, currency_to_convert_to=preferred_stablecoin
+):
     client = (
         Trade(api_key, api_secret, api_passphrase)
         if not development_mode
@@ -200,23 +215,41 @@ def calculate_profit_loss(kucoin_symbol):
     recent_fills = client.get_fill_list(
         tradeType=trade_account.upper(), symbol=kucoin_symbol
     )
+    base_currency, quote_currency = get_base_and_quote_currencies(
+        kucoin_symbol
+    )
     sell_funds = []
     buy_funds = []
-    # Flag to indicate whether to continue iterating over "sell" orders
+    profitOrLoss = 0
     iterating_sell = True
 
     for item in recent_fills["items"]:
-        if item["side"] == "sell" and iterating_sell:
-            sell_funds.append(float(item["funds"]))
-        elif item["side"] == "buy" and iterating_sell:
-            # Stop iterating over "sell" orders once a "buy" order is found
-            iterating_sell = False
-            buy_funds.append(float(item["funds"]))
-        elif item["side"] == "sell" and not iterating_sell:
-            # Stop iterating once the first "sell" order
-            # after a "buy" order is found
-            break
-
+        if quote_currency == currency_to_convert_to:
+            # Iterate over "sell" orders until the first "buy" order is found
+            if item["side"] == "sell" and iterating_sell:
+                sell_funds.append(float(item["funds"]))
+            elif item["side"] == "buy" and iterating_sell:
+                # Stop iterating over "sell" orders once a "buy" order is found
+                iterating_sell = False
+                buy_funds.append(float(item["funds"]))
+            elif item["side"] == "sell" and not iterating_sell:
+                # Stop iterating once the first "sell" order after a "buy"
+                # order is found
+                break
+        elif base_currency == currency_to_convert_to:
+            # Iterate over "buy" orders until the first "sell" order is found
+            if item["side"] == "buy" and iterating_sell:
+                buy_funds.append(float(item["funds"]))
+            elif item["side"] == "sell" and iterating_sell:
+                # Stop iterating over "buy" orders once a "sell" order is found
+                iterating_sell = False
+                sell_funds.append(float(item["funds"]))
+            elif item["side"] == "buy" and not iterating_sell:
+                # Stop iterating once the first "buy" order after a "sell"
+                # order is found
+                break
+    print("buy_funds", buy_funds)
+    print("sell_funds", sell_funds)
     sum_sell_funds = sum(sell_funds)
     sum_buy_funds = sum(buy_funds)
     profitOrLoss = sum_sell_funds - sum_buy_funds
