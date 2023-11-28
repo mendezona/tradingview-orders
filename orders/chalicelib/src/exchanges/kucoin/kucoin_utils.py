@@ -51,11 +51,9 @@ def submit_pair_trade_order(
         if buy_alert
         else tradingview_kucoin_inverse_pairs[tradingview_symbol]
     )
-    kucoin_inverse_symbol = (
-        tradingview_kucoin_inverse_pairs[tradingview_symbol]
-        if buy_alert
-        else tradingview_kucoin_symbols[tradingview_symbol]
-    )
+    kucoin_inverse_symbol = tradingview_kucoin_inverse_pairs[
+        tradingview_symbol
+    ]
 
     # If there is no sell order found for inverse pair symbol,
     # sell all holdings of the inverse pair and convert CGT to USDC.
