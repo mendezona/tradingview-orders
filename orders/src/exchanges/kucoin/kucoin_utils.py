@@ -43,9 +43,14 @@ def submit_pair_trade_order(
     tradingview_symbol,
     capital_to_deploy=capital_to_deploy_percentage,
     calculate_tax=True,
+    buy_alert=True,
 ):
     # Check if there is an inverse order open
-    kucoin_symbol = tradingview_kucoin_symbols[tradingview_symbol]
+    kucoin_symbol = (
+        tradingview_kucoin_symbols[tradingview_symbol]
+        if buy_alert
+        else tradingview_kucoin_inverse_pairs[tradingview_symbol]
+    )
     kucoin_inverse_symbol = tradingview_kucoin_inverse_pairs[
         tradingview_symbol
     ]
