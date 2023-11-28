@@ -1,12 +1,11 @@
 from decimal import ROUND_DOWN, Decimal
 
-from kucoin.client import Market, Trade, User
-from src.constants import (
+from chalicelib.src.constants import (
     capital_to_deploy_percentage,
     development_mode,
     tax_rate,
 )
-from src.exchanges.kucoin.kucoin_constants import (
+from chalicelib.src.exchanges.kucoin.kucoin_constants import (
     api_key,
     api_passphrase,
     api_secret,
@@ -17,6 +16,7 @@ from src.exchanges.kucoin.kucoin_constants import (
     tradingview_kucoin_inverse_pairs,
     tradingview_kucoin_symbols,
 )
+from kucoin.client import Market, Trade, User
 
 
 # Get current account balance
