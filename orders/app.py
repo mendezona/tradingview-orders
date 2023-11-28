@@ -1,16 +1,18 @@
 from chalice import Chalice
-from src.exchanges.kucoin.kucoin_utils import submit_pair_trade_order
+from chalicelib.src.exchanges.kucoin.kucoin_utils import (
+    submit_pair_trade_order,
+)
 
 app = Chalice(app_name="orders")
 
 
 @app.route("/")
-def index():
+def hello():
     return {"hello": "world"}
 
 
 @app.route("/pairtradebuyalert", methods=["POST"])
-def index():
+def pair_trade_buy_alert():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
@@ -23,7 +25,7 @@ def index():
 
 
 @app.route("/pairtradesellalert", methods=["POST"])
-def index():
+def pair_trade_sell_alert():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
@@ -39,7 +41,7 @@ def index():
 
 
 @app.route("/pairtradebuyalertnotax", methods=["POST"])
-def index():
+def pair_trade_buy_alert_no_tax():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
@@ -55,7 +57,7 @@ def index():
 
 
 @app.route("/pairtradesellalertnotax", methods=["POST"])
-def index():
+def pair_trade_sell_alert_no_tax():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
