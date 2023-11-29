@@ -6,10 +6,9 @@ from chalicelib.src.constants import (
     tax_rate,
 )
 from chalicelib.src.exchanges.kucoin.kucoin_constants import (
-    api_key,
-    api_passphrase,
-    api_secret,
     base_url,
+    kucoin_account_names,
+    kucoin_accounts,
     preferred_stablecoin,
     tax_pair,
     trade_account,
@@ -19,8 +18,21 @@ from chalicelib.src.exchanges.kucoin.kucoin_constants import (
 from kucoin.client import Market, Trade, User
 
 
+def get_account_credentials(account=kucoin_account_names[0]):
+    account = kucoin_accounts.get(account)
+
+    if account is not None:
+        api_key = account.get("api_key")
+        api_secret = account.get("api_secret")
+        api_passphrase = account.get("api_passphrase")
+        return api_key, api_secret, api_passphrase
+    else:
+        return None, None, None
+
+
 # Get current account balance
-def get_account_balance():
+def get_account_balance(account=kucoin_account_names[0]):
+    api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = (
         User(api_key, api_secret, api_passphrase)
         if not development_mode
@@ -44,6 +56,7 @@ def submit_pair_trade_order(
     capital_to_deploy=capital_to_deploy_percentage,
     calculate_tax=True,
     buy_alert=True,
+    account=kucoin_account_names[0],
 ):
     # Check if there is an inverse order open
     kucoin_symbol = (
@@ -60,7 +73,11 @@ def submit_pair_trade_order(
     # If there is no sell order found for inverse pair symbol,
     # sell all holdings of the inverse pair and convert CGT to USDC.
     # Assumes there is only one order open at a time
-    if not (get_most_recent_inverse_fill_to_stablecoin(kucoin_inverse_symbol)):
+    if not (
+        get_most_recent_inverse_fill_to_stablecoin(
+            kucoin_inverse_symbol, account=account
+        )
+    ):
         (
             base_currency_inverse,
             quote_currency_inverse,
@@ -75,26 +92,34 @@ def submit_pair_trade_order(
         if base_currency_inverse == preferred_stablecoin:
             print("NO CONVERSION TO STABLECOIN FOUND - SUBMIT BUY ORDER")
             submit_market_order_custom_percentage(
-                kucoin_inverse_symbol, True, capital_percentage_to_deploy=1
+                kucoin_inverse_symbol,
+                True,
+                capital_percentage_to_deploy=1,
+                account=account,
             )
         elif quote_currency_inverse == preferred_stablecoin:
             print("NO CONVERSION TO STABLECOIN FOUND - SUBMIT SELL ORDER")
             submit_market_order_custom_percentage(
-                kucoin_inverse_symbol, False, capital_percentage_to_deploy=1
+                kucoin_inverse_symbol,
+                False,
+                capital_percentage_to_deploy=1,
+                account=account,
             )
 
         if calculate_tax:
-            profit_loss_amount = calculate_profit_loss(kucoin_inverse_symbol)
+            profit_loss_amount = calculate_profit_loss(
+                kucoin_inverse_symbol, account
+            )
             tax_amount = profit_loss_amount * tax_rate
             print("tax_amount", profit_loss_amount, "\n")
 
             if tax_amount > 0:
-                submit_market_order_custom_amount(tax_pair, True, tax_amount)
+                submit_market_order_custom_amount(
+                    tax_pair, True, tax_amount, account
+                )
 
     submit_market_order_custom_percentage(
-        kucoin_symbol,
-        True,
-        capital_to_deploy,
+        kucoin_symbol, True, capital_to_deploy, account
     )
 
 
@@ -102,7 +127,9 @@ def submit_pair_trade_order(
 # Returns True if last order was Sell, False if last order was a Buy or
 # no previous orders found
 def get_most_recent_inverse_fill_to_stablecoin(
-    kucoin_symbol, stablecoin=preferred_stablecoin
+    kucoin_symbol,
+    stablecoin=preferred_stablecoin,
+    account=kucoin_account_names[0],
 ):
     base_currency, quote_currency = get_base_and_quote_currencies(
         kucoin_symbol
@@ -119,6 +146,7 @@ def get_most_recent_inverse_fill_to_stablecoin(
     buyOrSellToStablecoin = (
         "sell" if base_currency == stablecoin else "quote_currency"
     )
+    api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = (
         Trade(api_key, api_secret, api_passphrase)
         if not development_mode
@@ -145,7 +173,10 @@ def get_most_recent_inverse_fill_to_stablecoin(
 # Sell all holdings of a symbol using a Market Order.
 # Default is aSell Side Order
 def submit_market_order_custom_percentage(
-    kucoin_symbol, buy_side_order=True, capital_percentage_to_deploy=1
+    kucoin_symbol,
+    buy_side_order=True,
+    capital_percentage_to_deploy=1,
+    account=kucoin_account_names[0],
 ):
     base_currency, quote_currency = get_base_and_quote_currencies(
         kucoin_symbol
@@ -154,13 +185,15 @@ def submit_market_order_custom_percentage(
         "currency search", quote_currency if buy_side_order else base_currency
     )
     balance = (
-        get_available_balance(quote_currency)
+        get_available_balance(quote_currency, account)
         if buy_side_order
-        else get_available_balance(base_currency)
+        else get_available_balance(base_currency, account)
     )
     if not balance:
         return
-    base_increment, quote_increment = get_symbol_increments(kucoin_symbol)
+    base_increment, quote_increment = get_symbol_increments(
+        kucoin_symbol, account
+    )
     funds_to_deploy = Decimal(balance) * Decimal(capital_percentage_to_deploy)
     order_type = "buy" if buy_side_order else "sell"
     symbol_minimum_increment = (
@@ -177,6 +210,7 @@ def submit_market_order_custom_percentage(
     # Remember to use size instead of funds if you want denomination
     # in base currency
     if funds_to_deploy > 0:
+        api_key, api_secret, api_passphrase = get_account_credentials(account)
         client_trade = (
             Trade(api_key, api_secret, api_passphrase)
             if not development_mode
@@ -208,8 +242,11 @@ def submit_market_order_custom_percentage(
 # (assuming Market Order for both)
 # Change stablecoin to other stablecoin or pair
 def calculate_profit_loss(
-    kucoin_symbol, currency_to_convert_to=preferred_stablecoin
+    kucoin_symbol,
+    currency_to_convert_to=preferred_stablecoin,
+    account=kucoin_account_names[0],
 ):
+    api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = (
         Trade(api_key, api_secret, api_passphrase)
         if not development_mode
@@ -269,7 +306,10 @@ def calculate_profit_loss(
 
 # Convert CGT to USDC for easier tracking, and manual withdrawal later
 def submit_market_order_custom_amount(
-    kucoin_symbol, buy_side_order=True, capital_amount_to_deploy=0
+    kucoin_symbol,
+    buy_side_order=True,
+    capital_amount_to_deploy=0,
+    account=kucoin_account_names[0],
 ):
     base_currency, quote_currency = get_base_and_quote_currencies(
         kucoin_symbol
@@ -278,13 +318,15 @@ def submit_market_order_custom_amount(
         "currency search", quote_currency if buy_side_order else base_currency
     )
     balance = (
-        get_available_balance(quote_currency)
+        get_available_balance(quote_currency, account)
         if buy_side_order
-        else get_available_balance(base_currency)
+        else get_available_balance(base_currency, account)
     )
     if not float(balance) <= float(capital_amount_to_deploy):
         return
-    base_increment, quote_increment = get_symbol_increments(kucoin_symbol)
+    base_increment, quote_increment = get_symbol_increments(
+        kucoin_symbol, account
+    )
     funds_to_deploy = Decimal(capital_amount_to_deploy)
     order_type = "buy" if buy_side_order else "sell"
     symbol_minimum_increment = (
@@ -301,6 +343,7 @@ def submit_market_order_custom_amount(
     # Remember to use size instead of funds if you want denomination
     # in base currency
     if funds_to_deploy > 0:
+        api_key, api_secret, api_passphrase = get_account_credentials(account)
         client_trade = (
             Trade(api_key, api_secret, api_passphrase)
             if not development_mode
@@ -329,7 +372,11 @@ def submit_market_order_custom_amount(
 
 
 # Get available coin balance, can specify base or quote symbol
-def get_available_balance(currency):
+def get_available_balance(
+    currency,
+    account=kucoin_account_names[0],
+):
+    api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = User(api_key, api_secret, api_passphrase)
     accounts = client.get_account_list(currency=currency)
 
@@ -355,7 +402,11 @@ def get_available_balance(currency):
 # Get minimum increment that a coin pair accepts. Returns base increment
 # of the base currency (first currency in the trading pair), and the quote
 # increment of the quote currency (second currency in the trading pair)
-def get_symbol_increments(symbol):
+def get_symbol_increments(
+    symbol,
+    account=kucoin_account_names[0],
+):
+    api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = Market(api_key, api_secret, api_passphrase)
     symbols = client.get_symbol_list_v2()
 
