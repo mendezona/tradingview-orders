@@ -45,3 +45,9 @@ Accounts:
 Kucoin:
 
 - Add crendentils to the constants file in the relevant exchange
+
+AWS:
+
+DynamoDB:
+
+- Setup DynamoDB instances that you would like to save data to by using Developer functions in Dynamo_DB file
