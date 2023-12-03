@@ -1,4 +1,9 @@
 from chalice import Chalice
+from chalicelib.src.aws.aws_constants import dynamodb_table_names_instance
+from chalicelib.src.aws.dynamo_db import (
+    create_new_dynamodb_instance,
+    save_item_to_dynamodb_table,
+)
 from chalicelib.src.exchanges.kucoin.kucoin_constants import (
     kucoin_account_names,
     tax_pair,
@@ -20,20 +25,22 @@ def hello():
     return {"hello": "world"}
 
 
+# Developer function, convert assets in Kucoin subaccount to a stablecoin
 @app.route("/converttostablecoin")
-def transferFundsToStablecoin():
+def transfer_funds_to_stablecoin():
     # set to sub account 1
     submit_market_order_custom_percentage(
-        tax_pair, False, account=kucoin_account_names[1]
+        tax_pair, False, account=kucoin_account_names[2]
     )
 
     return {"message": "market order executed"}
 
 
+# Developer function, reset Kucoin account to all Stablecoins
 @app.route("/resettostablecoin")
-def resetFundsToStablecoin():
+def reset_funds_to_stablecoin():
     # set to sub account 1 and SOL3S-USDT
-    pairToReset = "SOL3S-USDT"
+    pairToReset = "LINK3S-USDT"
     account = kucoin_account_names[1]
     submit_market_order_custom_percentage(
         pairToReset,
@@ -42,6 +49,35 @@ def resetFundsToStablecoin():
     )
 
     return {"message": "market order executed"}
+
+
+"""
+Save historical Tradingview Alerts
+"""
+
+
+# Developer function, create new DynamoDB instance
+@app.route("/createnewdynamodbinstance")
+def create_new_db():
+    create_new_dynamodb_instance(
+        dynamodb_table_names_instance.ptos_model_alerts
+    )
+
+    return {"dynamodb": "new table created"}
+
+
+@app.route("/saveptosmodelalerts", methods=["POST"])
+def save_tradingview_ptos_model_alerts():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    table_name = dynamodb_table_names_instance.ptos_model_alerts
+
+    response = save_item_to_dynamodb_table(
+        table_name=table_name, item=tradingViewWebhookMessage
+    )
+
+    print("response: ", response)
+    return {"saved": "ptos model alert"}
 
 
 """
