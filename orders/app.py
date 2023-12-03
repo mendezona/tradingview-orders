@@ -56,11 +56,12 @@ Save historical Tradingview Alerts
 """
 
 
-# Developer function, create new DynamoDB instance
+# Developer function, create new DynamoDB instance with desired
+# table name
 @app.route("/createnewdynamodbinstance")
 def create_new_db():
     create_new_dynamodb_instance(
-        dynamodb_table_names_instance.ptos_model_alerts
+        dynamodb_table_names_instance.ptos_signal_alerts
     )
 
     return {"dynamodb": "new table created"}
@@ -78,6 +79,20 @@ def save_tradingview_ptos_model_alerts():
 
     print("response: ", response)
     return {"saved": "ptos model alert"}
+
+
+@app.route("/saveptossignalalerts", methods=["POST"])
+def save_tradingview_ptos_signal_alerts():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    table_name = dynamodb_table_names_instance.ptos_signal_alerts
+
+    response = save_item_to_dynamodb_table(
+        table_name=table_name, item=tradingViewWebhookMessage
+    )
+
+    print("response: ", response)
+    return {"saved": "ptos signal alert"}
 
 
 """

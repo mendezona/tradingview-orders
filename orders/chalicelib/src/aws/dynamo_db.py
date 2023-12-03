@@ -36,17 +36,10 @@ def create_new_dynamodb_instance(table_name):
     return "Dynamodb ", table_name, "created"
 
 
+# Get DynamoDB instance by table name
 def get_dynamodb_table(table_name):
     table = dynamodb.Table(table_name)
     return table
-
-
-def save_item_to_dynamodb_table(table_name, item):
-    modified_item = add_interval_alert_type_time(item)
-    table = get_dynamodb_table(table_name)
-    table.put_item(Item=modified_item)
-
-    return "Item saved in DynamoDB"
 
 
 # Add concatenated property interval, alert type, and time for querying
@@ -57,6 +50,15 @@ def add_interval_alert_type_time(item):
     )
     item["interval_alertType_time"] = interval_alert_type_time
     return item
+
+
+# Save item to DynamoDB instance
+def save_item_to_dynamodb_table(table_name, item):
+    modified_item = add_interval_alert_type_time(item)
+    table = get_dynamodb_table(table_name)
+    table.put_item(Item=modified_item)
+
+    return "Item saved in DynamoDB"
 
 
 # Query DynamoDb to find instances based on the arguements below
