@@ -13,6 +13,7 @@ Dependencies:
 - Tradingview is setup to send alerts to desired route (exchange based)
 - AWS Chalice (Serverless Framework)
 - AWS Account setup with AWS Lambda
+- AWS DynamoDB instances to save data to
 - Kucoin Python SDK
 
 How to start project:
