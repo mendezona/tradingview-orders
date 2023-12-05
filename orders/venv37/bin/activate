@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/jmendezona001/repos/tradingview-orders/venv37"
+VIRTUAL_ENV="/Users/jmendezona001/repos/tradingview-orders/orders/venv37"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

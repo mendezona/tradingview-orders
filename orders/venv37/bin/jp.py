@@ -1,4 +1,4 @@
-#!/Users/jmendezona001/repos/tradingview-orders/venv37/bin/python3
+#!/Users/jmendezona001/repos/tradingview-orders/orders/venv37/bin/python3
 
 import sys
 import json

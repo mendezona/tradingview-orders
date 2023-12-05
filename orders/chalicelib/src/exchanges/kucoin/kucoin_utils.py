@@ -1,4 +1,5 @@
 from decimal import ROUND_DOWN, Decimal
+from typing import Tuple
 
 from chalicelib.src.constants import (
     capital_to_deploy_percentage,
@@ -373,9 +374,9 @@ def submit_market_order_custom_amount(
 
 # Get available coin balance, can specify base or quote symbol
 def get_available_balance(
-    currency,
-    account=kucoin_account_names[0],
-):
+    currency: str,
+    account: str = kucoin_account_names[0],
+) -> str:
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = User(api_key, api_secret, api_passphrase)
     accounts = client.get_account_list(currency=currency)
@@ -396,16 +397,16 @@ def get_available_balance(
 
     if available_balance:
         print(f"Trading account balance for {currency}: {available_balance}")
-        return available_balance
+        return str(available_balance)
 
 
 # Get minimum increment that a coin pair accepts. Returns base increment
 # of the base currency (first currency in the trading pair), and the quote
 # increment of the quote currency (second currency in the trading pair)
 def get_symbol_increments(
-    symbol,
-    account=kucoin_account_names[0],
-):
+    symbol: str,
+    account: str = kucoin_account_names[0],
+) -> tuple | tuple[None, None]:
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = Market(api_key, api_secret, api_passphrase)
     symbols = client.get_symbol_list_v2()
@@ -423,9 +424,19 @@ def get_symbol_increments(
 
 # Find base and quote currencies, add this when using this function
 # base_currency, quote_currency = get_base_and_quote_currencies(kucoin_symbol)
-def get_base_and_quote_currencies(kucoin_symbol):
-    parts = kucoin_symbol.split("-")
+def get_base_and_quote_currencies(kucoin_symbol: str) -> Tuple[str, str]:
+    if "-" not in kucoin_symbol:
+        raise ValueError(
+            "Invalid symbol format. Expected format: 'BASE-QUOTE'"
+        )
+
+    parts: list[str] = kucoin_symbol.split("-")
+
+    if len(parts) != 2:
+        raise ValueError(
+            f"Invalid symbol format: '{kucoin_symbol}'. Expected format: 'BASE-QUOTE'"
+        )
 
     # The first part is the base currency, and the second part
     # is the quote currency
-    return parts[0], parts[1]
+    return parts[0].upper(), parts[1].upper()
