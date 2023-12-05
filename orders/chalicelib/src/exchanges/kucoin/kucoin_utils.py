@@ -1,5 +1,5 @@
-from ast import Tuple
 from decimal import ROUND_DOWN, Decimal
+from typing import Tuple
 
 from chalicelib.src.constants import (
     capital_to_deploy_percentage,
@@ -374,8 +374,8 @@ def submit_market_order_custom_amount(
 
 # Get available coin balance, can specify base or quote symbol
 def get_available_balance(
-    currency,
-    account=kucoin_account_names[0],
+    currency: str,
+    account: str = kucoin_account_names[0],
 ):
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = User(api_key, api_secret, api_passphrase)
@@ -404,9 +404,9 @@ def get_available_balance(
 # of the base currency (first currency in the trading pair), and the quote
 # increment of the quote currency (second currency in the trading pair)
 def get_symbol_increments(
-    symbol,
-    account=kucoin_account_names[0],
-):
+    symbol: str,
+    account: str = kucoin_account_names[0],
+) -> tuple[str, str]:
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = Market(api_key, api_secret, api_passphrase)
     symbols = client.get_symbol_list_v2()
@@ -424,7 +424,7 @@ def get_symbol_increments(
 
 # Find base and quote currencies, add this when using this function
 # base_currency, quote_currency = get_base_and_quote_currencies(kucoin_symbol)
-def get_base_and_quote_currencies(kucoin_symbol: str) -> [str, str]:
+def get_base_and_quote_currencies(kucoin_symbol: str) -> Tuple[str, str]:
     if "-" not in kucoin_symbol:
         raise ValueError(
             "Invalid symbol format. Expected format: 'BASE-QUOTE'"
