@@ -20,7 +20,8 @@ How to start project:
 
 - Check python 3.7.3 is installed
 - python3 --version
-- Setup virtual environment
+- Setup virtual environment in project folder
+- cd orders
 - python3 -m venv venv37
 - . venv37/bin/activate
 - Install AWS Chalice - https://github.com/aws/chalice
@@ -52,3 +53,10 @@ AWS:
 DynamoDB:
 
 - Setup DynamoDB instances that you would like to save data to by using Developer functions in Dynamo_DB file
+
+Testing:
+
+- Go to order folder
+- Ensure virtual environment is setup
+- pytest
+- This will run all tests

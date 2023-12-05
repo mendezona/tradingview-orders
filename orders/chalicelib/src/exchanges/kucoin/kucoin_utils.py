@@ -1,3 +1,4 @@
+from ast import Tuple
 from decimal import ROUND_DOWN, Decimal
 
 from chalicelib.src.constants import (
@@ -423,9 +424,19 @@ def get_symbol_increments(
 
 # Find base and quote currencies, add this when using this function
 # base_currency, quote_currency = get_base_and_quote_currencies(kucoin_symbol)
-def get_base_and_quote_currencies(kucoin_symbol):
+def get_base_and_quote_currencies(kucoin_symbol: str) -> [str, str]:
+    if "-" not in kucoin_symbol:
+        raise ValueError(
+            "Invalid symbol format. Expected format: 'BASE-QUOTE'"
+        )
+
     parts = kucoin_symbol.split("-")
+
+    if len(parts) != 2:
+        raise ValueError(
+            f"Invalid symbol format: '{kucoin_symbol}'. Expected format: 'BASE-QUOTE'"
+        )
 
     # The first part is the base currency, and the second part
     # is the quote currency
-    return parts[0], parts[1]
+    return parts[0].upper(), parts[1].upper()
