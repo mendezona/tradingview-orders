@@ -1,9 +1,27 @@
 import pytest
 from chalicelib.src.exchanges.kucoin.kucoin_utils import (
+    get_available_balance,
     get_base_and_quote_currencies,
     get_symbol_increments,
 )
-from mock_data_objects import mock_symbol_list_response
+from mock_data_objects import (
+    mock_account_list_response,
+    mock_symbol_list_response,
+)
+
+
+def test_get_available_balance(mocker, capsys):
+    # Mock the User class and its get_account_list method
+    mocker.patch(
+        "chalicelib.src.exchanges.kucoin.kucoin_utils.User.get_account_list",
+        return_value=mock_account_list_response,
+    )
+
+    # Test for an existing currency (e.g., "BTC")
+    available_balance = get_available_balance("BTC")
+    captured = capsys.readouterr()
+    assert available_balance == "10.0"
+    assert "Trading account balance for BTC: 10.0" in captured.out
 
 
 def test_get_symbol_increments(mocker):

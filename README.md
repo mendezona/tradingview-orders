@@ -58,5 +58,8 @@ Testing:
 
 - Go to order folder
 - Ensure virtual environment is setup
+- Set PYTHON Path
+- export PYTHONPATH=/Users/jmendezona001/repos/tradingview-orders/orders:$PYTHONPATH
+- run tests
 - pytest
 - This will run all tests

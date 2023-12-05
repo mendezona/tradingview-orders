@@ -376,7 +376,7 @@ def submit_market_order_custom_amount(
 def get_available_balance(
     currency: str,
     account: str = kucoin_account_names[0],
-):
+) -> str:
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = User(api_key, api_secret, api_passphrase)
     accounts = client.get_account_list(currency=currency)
@@ -397,7 +397,7 @@ def get_available_balance(
 
     if available_balance:
         print(f"Trading account balance for {currency}: {available_balance}")
-        return available_balance
+        return str(available_balance)
 
 
 # Get minimum increment that a coin pair accepts. Returns base increment
@@ -406,7 +406,7 @@ def get_available_balance(
 def get_symbol_increments(
     symbol: str,
     account: str = kucoin_account_names[0],
-) -> tuple[str, str]:
+) -> tuple | tuple[None, None]:
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = Market(api_key, api_secret, api_passphrase)
     symbols = client.get_symbol_list_v2()
@@ -430,7 +430,7 @@ def get_base_and_quote_currencies(kucoin_symbol: str) -> Tuple[str, str]:
             "Invalid symbol format. Expected format: 'BASE-QUOTE'"
         )
 
-    parts = kucoin_symbol.split("-")
+    parts: list[str] = kucoin_symbol.split("-")
 
     if len(parts) != 2:
         raise ValueError(
