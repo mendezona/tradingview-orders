@@ -1,13 +1,58 @@
+from unittest.mock import patch
+
 import pytest
+from chalicelib.src.exchanges.kucoin.kucoin_constants import (
+    kucoin_account_names,
+)
 from chalicelib.src.exchanges.kucoin.kucoin_utils import (
+    get_account_credentials,
     get_available_balance,
     get_base_and_quote_currencies,
     get_symbol_increments,
 )
 from mock_data_objects import (
     mock_account_list_response,
+    mock_kucoin_accounts,
     mock_symbol_list_response,
 )
+
+
+@patch(
+    "chalicelib.src.exchanges.kucoin.kucoin_utils.kucoin_accounts",
+    mock_kucoin_accounts,
+)
+def test_get_account_credentials():
+    # Call the function with different accounts
+    result1 = get_account_credentials(
+        kucoin_account_names[0], mock_kucoin_accounts
+    )
+    result2 = get_account_credentials(
+        kucoin_account_names[1], mock_kucoin_accounts
+    )
+    result3 = get_account_credentials(
+        kucoin_account_names[2], mock_kucoin_accounts
+    )
+
+    # Assertions
+    assert result1 == (
+        "mock_api_key1",
+        "mock_api_secret1",
+        "mock_api_passphrase1",
+    )
+    assert result2 == (
+        "mock_api_key2",
+        "mock_api_secret2",
+        "mock_api_passphrase2",
+    )
+    assert result3 == (
+        "mock_api_key3",
+        "mock_api_secret3",
+        "mock_api_passphrase3",
+    )
+
+    # Test for an account that doesn't exist
+    result_nonexistent = get_account_credentials("nonexistent_account")
+    assert result_nonexistent == (None, None, None)
 
 
 def test_get_available_balance(mocker, capsys):
@@ -27,7 +72,7 @@ def test_get_available_balance(mocker, capsys):
 def test_get_symbol_increments(mocker):
     # Mock the Market class and its get_symbol_list_v2 method
     mocker.patch(
-        "chalicelib.src.exchanges.kucoin.kucoin_utils.Market.get_symbol_list_v2",
+        "chalicelib.src.exchanges.kucoin.kucoin_utils.Market.get_symbol_list_v2",  # noqa
         return_value=mock_symbol_list_response,
     )
 

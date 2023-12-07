@@ -1,5 +1,5 @@
 from decimal import ROUND_DOWN, Decimal
-from typing import Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from chalicelib.src.constants import (
     capital_to_deploy_percentage,
@@ -16,23 +16,30 @@ from chalicelib.src.exchanges.kucoin.kucoin_constants import (
     tradingview_kucoin_inverse_pairs,
     tradingview_kucoin_symbols,
 )
+from chalicelib.src.exchanges.kucoin.kucoin_types import (
+    KucoinAccountCredentials,
+)
 from kucoin.client import Market, Trade, User
 
 
-def get_account_credentials(account=kucoin_account_names[0]):
-    account = kucoin_accounts.get(account)
+# Get account credentials, for main account or sub accounts to trade with
+def get_account_credentials(
+    account: str = kucoin_account_names[0],
+    accounts: Dict[str, KucoinAccountCredentials] = kucoin_accounts,
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    account_info = accounts.get(account)
 
-    if account is not None:
-        api_key = account.get("api_key")
-        api_secret = account.get("api_secret")
-        api_passphrase = account.get("api_passphrase")
+    if account_info is not None:
+        api_key: Optional[str] = account_info.get("api_key")
+        api_secret: Optional[str] = account_info.get("api_secret")
+        api_passphrase: Optional[str] = account_info.get("api_passphrase")
         return api_key, api_secret, api_passphrase
     else:
         return None, None, None
 
 
 # Get current account balance
-def get_account_balance(account=kucoin_account_names[0]):
+def get_account_balance(account: str = kucoin_account_names[0]) -> Any:
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = (
         User(api_key, api_secret, api_passphrase)
@@ -307,11 +314,11 @@ def calculate_profit_loss(
 
 # Convert CGT to USDC for easier tracking, and manual withdrawal later
 def submit_market_order_custom_amount(
-    kucoin_symbol,
-    buy_side_order=True,
-    capital_amount_to_deploy=0,
-    account=kucoin_account_names[0],
-):
+    kucoin_symbol: str,
+    buy_side_order: bool = True,
+    capital_amount_to_deploy: int = 0,
+    account: str = kucoin_account_names[0],
+) -> None:
     base_currency, quote_currency = get_base_and_quote_currencies(
         kucoin_symbol
     )
@@ -328,13 +335,13 @@ def submit_market_order_custom_amount(
     base_increment, quote_increment = get_symbol_increments(
         kucoin_symbol, account
     )
-    funds_to_deploy = Decimal(capital_amount_to_deploy)
+    funds_to_deploy: Decimal = Decimal(capital_amount_to_deploy)
     order_type = "buy" if buy_side_order else "sell"
-    symbol_minimum_increment = (
+    symbol_minimum_increment: Decimal = (
         Decimal(base_increment) if buy_side_order else Decimal(quote_increment)
     )
     # Round down the max order size to the nearest valid increment
-    funds_to_deploy = funds_to_deploy.quantize(
+    funds_to_deploy: Decimal = funds_to_deploy.quantize(
         symbol_minimum_increment, rounding=ROUND_DOWN
     )
     print("order_side: ", order_type)
@@ -376,7 +383,7 @@ def submit_market_order_custom_amount(
 def get_available_balance(
     currency: str,
     account: str = kucoin_account_names[0],
-) -> str:
+) -> Optional[str]:
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = User(api_key, api_secret, api_passphrase)
     accounts = client.get_account_list(currency=currency)
@@ -399,6 +406,8 @@ def get_available_balance(
         print(f"Trading account balance for {currency}: {available_balance}")
         return str(available_balance)
 
+    return None
+
 
 # Get minimum increment that a coin pair accepts. Returns base increment
 # of the base currency (first currency in the trading pair), and the quote
@@ -406,7 +415,7 @@ def get_available_balance(
 def get_symbol_increments(
     symbol: str,
     account: str = kucoin_account_names[0],
-) -> tuple | tuple[None, None]:
+) -> Tuple[Optional[str], Optional[str]]:
     api_key, api_secret, api_passphrase = get_account_credentials(account)
     client = Market(api_key, api_secret, api_passphrase)
     symbols = client.get_symbol_list_v2()
@@ -434,7 +443,7 @@ def get_base_and_quote_currencies(kucoin_symbol: str) -> Tuple[str, str]:
 
     if len(parts) != 2:
         raise ValueError(
-            f"Invalid symbol format: '{kucoin_symbol}'. Expected format: 'BASE-QUOTE'"
+            f"Invalid symbol format: '{kucoin_symbol}'. Expected format: 'BASE-QUOTE'"  # noqa
         )
 
     # The first part is the base currency, and the second part
