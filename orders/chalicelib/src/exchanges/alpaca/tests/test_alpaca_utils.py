@@ -9,10 +9,12 @@ from chalicelib.src.exchanges.alpaca.alpaca_constants import (
 )
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
+    MockAsset,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_utils import (
     get_alpaca_account_balance,
     get_alpaca_credentials,
+    is_asset_fractionable,
     submit_market_order_custom_percentage,
 )
 from chalicelib.src.exchanges.alpaca.tests.alpaca_mock_data_objects import (
@@ -101,12 +103,22 @@ def mock_get_alpaca_account_balance():
         yield mock
 
 
+@pytest.fixture
+def mock_is_asset_fractionable():
+    with patch(
+        "chalicelib.src.exchanges.alpaca.alpaca_utils.is_asset_fractionable",
+        return_value=True,
+    ) as mock:
+        yield mock
+
+
 class TestSubmitMarketOrderCustomPercentage:
     def test_valid_order(
         self,
         mock_get_alpaca_credentials,
         mock_get_alpaca_account_balance,
         mock_trading_client,
+        mock_is_asset_fractionable,
     ):
         submit_market_order_custom_percentage(
             "AAPL", True, 0.5, "test_account"
@@ -118,6 +130,7 @@ class TestSubmitMarketOrderCustomPercentage:
         mock_get_alpaca_credentials,
         mock_get_alpaca_account_balance,
         mock_trading_client,
+        mock_is_asset_fractionable,
     ):
         mock_get_alpaca_credentials.return_value = None
         submit_market_order_custom_percentage(
@@ -130,6 +143,7 @@ class TestSubmitMarketOrderCustomPercentage:
         mock_get_alpaca_credentials,
         mock_get_alpaca_account_balance,
         mock_trading_client,
+        mock_is_asset_fractionable,
     ):
         mock_get_alpaca_account_balance.return_value = {"account_cash": "0"}
         submit_market_order_custom_percentage(
@@ -142,8 +156,45 @@ class TestSubmitMarketOrderCustomPercentage:
         mock_get_alpaca_credentials,
         mock_get_alpaca_account_balance,
         mock_trading_client,
+        mock_is_asset_fractionable,
     ):
         mock_trading_client.submit_order.side_effect = Exception("Test error")
         submit_market_order_custom_percentage(
             "AAPL", True, 0.5, "test_account"
         )
+
+
+# tests for is_asset_fractionable helper function
+@pytest.fixture
+def mock_trading_client_assets(
+    mock_fractionable_asset, mock_non_fractionable_asset
+):
+    with patch(
+        "chalicelib.src.exchanges.alpaca.alpaca_utils.TradingClient"
+    ) as mock_client:
+        mock_client.return_value.get_asset.side_effect = (
+            lambda symbol: mock_fractionable_asset
+            if symbol == "AAPL"
+            else mock_non_fractionable_asset
+        )
+        yield mock_client
+
+
+class TestIsAssetFractionable:
+    @pytest.fixture
+    def mock_fractionable_asset(self):
+        return MockAsset(fractionable=True)
+
+    @pytest.fixture
+    def mock_non_fractionable_asset(self):
+        return MockAsset(fractionable=False)
+
+    def test_asset_is_fractionable(
+        self, mock_get_alpaca_credentials, mock_trading_client_assets
+    ):
+        assert is_asset_fractionable("AAPL") is True
+
+    def test_asset_is_not_fractionable(
+        self, mock_get_alpaca_credentials, mock_trading_client_assets
+    ):
+        assert is_asset_fractionable("TSLA") is False

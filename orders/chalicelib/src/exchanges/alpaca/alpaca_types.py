@@ -6,3 +6,8 @@ class AlpacaAccountCredentials(TypedDict):
     key: str
     secret: str | None
     paper: bool
+
+
+class MockAsset:
+    def __init__(self, fractionable):
+        self.fractionable = fractionable

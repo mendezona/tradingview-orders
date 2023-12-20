@@ -93,16 +93,25 @@ def submit_market_order_custom_percentage(
     time_in_force: TimeInForce = TimeInForce.DAY,
 ) -> None:
     credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
-        account, development_mode_toggle=False
+        account
     )
 
     if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        # Check if asset is fractionable
+        fractionable: bool = is_asset_fractionable(
+            alpaca_symbol, trading_client
+        )
+
         # Get account balance
         account_info: dict[str, Any] | Literal[
             "Account not found"
         ] = get_alpaca_account_balance()
-
-        # Calculate funds to deploy
         balance: Decimal = Decimal(account_info["account_cash"])
         capital_percentage_to_deploy = Decimal(
             str(capital_percentage_to_deploy)
@@ -110,7 +119,6 @@ def submit_market_order_custom_percentage(
         funds_to_deploy: Decimal = (
             balance * capital_percentage_to_deploy
         ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
-        print("funds to deploy", funds_to_deploy)
 
         # Check if funds are sufficient
         if funds_to_deploy <= 0:
@@ -122,20 +130,39 @@ def submit_market_order_custom_percentage(
 
         # Create and submit a market order
         try:
-            trading_client = TradingClient(
-                api_key=credentials["key"],
-                secret_key=credentials["secret"],
-                paper=credentials["paper"],
-            )
             order_request = MarketOrderRequest(
                 symbol=alpaca_symbol,
-                notional=round(funds_to_deploy, 2),
+                notional=round(funds_to_deploy, 2)
+                if fractionable
+                else int(funds_to_deploy),
                 side=order_side,
                 time_in_force=time_in_force,
             )
             order_response = trading_client.submit_order(order_request)
-
             print(f"Market {order_side} order submitted: \n", order_response)
 
         except Exception as e:
             print(f"An error occurred while submitting the order: {e}")
+
+
+# Check if you can buy fractionalable portions of an asset
+def is_asset_fractionable(
+    symbol: str,
+    account: str = alpaca_trading_account_name_live,
+) -> bool:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+        try:
+            asset = client.get_asset(symbol)
+            return asset.fractionable
+        except Exception as e:
+            print(f"Error fetching asset information: {e}")
+            return False
