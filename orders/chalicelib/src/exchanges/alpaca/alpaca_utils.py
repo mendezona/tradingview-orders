@@ -1,6 +1,9 @@
+from decimal import ROUND_DOWN, Decimal
 from typing import Any, Literal, Optional
 
 from alpaca.trading.client import TradingClient
+from alpaca.trading.enums import OrderSide, TimeInForce
+from alpaca.trading.requests import MarketOrderRequest
 from chalicelib.src.constants import development_mode
 from chalicelib.src.exchanges.alpaca.alpaca_constants import (
     alpaca_accounts,
@@ -13,8 +16,13 @@ from chalicelib.src.exchanges.alpaca.alpaca_types import (
 
 
 # Developer function, for testing
-def test_alpaca_function():
-    get_alpaca_account_balance()
+def test_alpaca_function(tradingview_symbol):
+    submit_market_order_custom_percentage(
+        alpaca_symbol=tradingview_symbol,
+        buy_side_order=True,
+        capital_percentage_to_deploy=0.3,
+        account=alpaca_trading_account_name_paper,
+    )
 
 
 # Get Alpaca Credentials (usually Live or Paper)
@@ -32,6 +40,7 @@ def get_alpaca_credentials(
             endpoint=account_info["endpoint"],
             key=account_info["key"],
             secret=account_info["secret"],
+            paper=account_info["paper"],
         )
     else:
         return None
@@ -73,3 +82,60 @@ def get_alpaca_account_balance(
         }
 
     return "Account not found"
+
+
+# Submit market order based on custom percentage
+def submit_market_order_custom_percentage(
+    alpaca_symbol: str,
+    buy_side_order: bool = True,
+    capital_percentage_to_deploy: float = 1.0,
+    account: str = alpaca_trading_account_name_live,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+) -> None:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account, development_mode_toggle=False
+    )
+
+    if credentials:
+        # Get account balance
+        account_info: dict[str, Any] | Literal[
+            "Account not found"
+        ] = get_alpaca_account_balance()
+
+        # Calculate funds to deploy
+        balance: Decimal = Decimal(account_info["account_cash"])
+        capital_percentage_to_deploy = Decimal(
+            str(capital_percentage_to_deploy)
+        )
+        funds_to_deploy: Decimal = (
+            balance * capital_percentage_to_deploy
+        ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+        print("funds to deploy", funds_to_deploy)
+
+        # Check if funds are sufficient
+        if funds_to_deploy <= 0:
+            print("Insufficient funds to deploy")
+            return
+
+        # Set the order side
+        order_side = OrderSide.BUY if buy_side_order else OrderSide.SELL
+
+        # Create and submit a market order
+        try:
+            trading_client = TradingClient(
+                api_key=credentials["key"],
+                secret_key=credentials["secret"],
+                paper=credentials["paper"],
+            )
+            order_request = MarketOrderRequest(
+                symbol=alpaca_symbol,
+                notional=round(funds_to_deploy, 2),
+                side=order_side,
+                time_in_force=time_in_force,
+            )
+            order_response = trading_client.submit_order(order_request)
+
+            print(f"Market {order_side} order submitted: \n", order_response)
+
+        except Exception as e:
+            print(f"An error occurred while submitting the order: {e}")

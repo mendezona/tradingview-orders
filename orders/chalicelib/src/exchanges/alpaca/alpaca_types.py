@@ -5,3 +5,4 @@ class AlpacaAccountCredentials(TypedDict):
     endpoint: str
     key: str
     secret: str | None
+    paper: bool

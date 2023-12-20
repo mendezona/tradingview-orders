@@ -27,10 +27,20 @@ def hello():
 
 
 @app.route("/alpacatest")
-def hello():
+def alpaca_test():
     test_alpaca_function()
 
     return {"hello": "world"}
+
+
+@app.route("/alpacapairtradebuyalert", methods=["POST"])
+def alpaca_pair_trade_buy_alert():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    test_alpaca_function(tradingViewWebhookMessage["ticker"])
+
+    return {"message": "market order executed"}
 
 
 # Developer function, convert assets in Kucoin subaccount to a stablecoin

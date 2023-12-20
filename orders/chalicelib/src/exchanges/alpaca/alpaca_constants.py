@@ -17,11 +17,13 @@ alpaca_accounts: dict[str, dict[AlpacaAccountCredentials]] = {
         "endpoint": alpaca_trading_endpoint,
         "key": "live_key",
         "secret": "live_secret",
+        "paper": False,
     },
     alpaca_trading_account_name_paper: {
         "endpoint": alpaca_paper_trading_endpoint,
         "key": "paper_key",
         "secret": "paper_secret",
+        "paper": True,
     },
 }
 
