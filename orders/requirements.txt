@@ -2,3 +2,4 @@ requests
 kucoin-python
 flake8
 boto3
+alpaca-py

@@ -4,6 +4,7 @@ from chalicelib.src.aws.dynamo_db import (
     create_new_dynamodb_instance,
     save_item_to_dynamodb_table,
 )
+from chalicelib.src.exchanges.alpaca.alpaca_utils import test_alpaca_function
 from chalicelib.src.exchanges.kucoin.kucoin_constants import (
     kucoin_account_names,
     tax_pair,
@@ -25,6 +26,23 @@ def hello():
     return {"hello": "world"}
 
 
+@app.route("/alpacatest")
+def alpaca_test():
+    test_alpaca_function()
+
+    return {"hello": "world"}
+
+
+@app.route("/alpacapairtradebuyalert", methods=["POST"])
+def alpaca_pair_trade_buy_alert():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    test_alpaca_function(tradingViewWebhookMessage["ticker"])
+
+    return {"message": "market order executed"}
+
+
 # Developer function, convert assets in Kucoin subaccount to a stablecoin
 @app.route("/converttostablecoin")
 def transfer_funds_to_stablecoin():
@@ -39,9 +57,9 @@ def transfer_funds_to_stablecoin():
 # Developer function, reset Kucoin account to all Stablecoins
 @app.route("/resettostablecoin")
 def reset_funds_to_stablecoin():
-    # set to sub account 1 and SOL3S-USDT
-    pairToReset = "LINK3S-USDT"
-    account = kucoin_account_names[1]
+    # SET ACCOUNT AND BASE AND QUOTE CURRENCIES
+    pairToReset: str = "BASE-QUOTE"
+    account: str = kucoin_account_names[1]
     submit_market_order_custom_percentage(
         pairToReset,
         False,
@@ -85,7 +103,7 @@ def save_tradingview_ptos_model_alerts():
 def save_tradingview_ptos_signal_alerts():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
-    table_name = dynamodb_table_names_instance.ptos_signal_alerts
+    table_name: str = dynamodb_table_names_instance.ptos_signal_alerts
 
     response = save_item_to_dynamodb_table(
         table_name=table_name, item=tradingViewWebhookMessage
