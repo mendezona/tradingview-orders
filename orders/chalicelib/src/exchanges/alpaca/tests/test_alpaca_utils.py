@@ -82,6 +82,7 @@ class TestGetAlpacaAccountBalance:
         assert account_balance["account_cash"] == mock_account_details.cash
 
 
+# tests for submit_market_order_custom_amount helper function
 @pytest.fixture
 def mock_get_alpaca_credentials():
     with patch(
