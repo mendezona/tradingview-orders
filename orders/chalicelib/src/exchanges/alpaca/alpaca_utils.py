@@ -15,11 +15,17 @@ from alpaca.trading.requests import (
     MarketOrderRequest,
     OrderRequest,
 )
-from chalicelib.src.constants import development_mode
+from chalicelib.src.constants import (
+    capital_to_deploy_percentage,
+    development_mode,
+    tax_rate,
+)
 from chalicelib.src.exchanges.alpaca.alpaca_constants import (
     alpaca_accounts,
     alpaca_trading_account_name_live,
     alpaca_trading_account_name_paper,
+    tradingview_alpaca_inverse_pairs,
+    tradingview_alpaca_symbols,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
@@ -27,7 +33,7 @@ from chalicelib.src.exchanges.alpaca.alpaca_types import (
 
 
 # Developer function, for testing
-def test_alpaca_function(tradingview_symbol):
+def test_alpaca_function():
     # get_latest_quote(tradingview_symbol)
 
     # get_available_asset_balance(tradingview_symbol)
@@ -39,9 +45,11 @@ def test_alpaca_function(tradingview_symbol):
     #     account=alpaca_trading_account_name_paper,
     # )
 
-    check_last_filled_order_type(
-        "TSLT", account=alpaca_trading_account_name_paper
-    )
+    get_latest_quote(symbol="TSLT", account=alpaca_trading_account_name_paper)
+
+    # close_all_holdings_of_asset(
+    #     "AAPL", account=alpaca_trading_account_name_paper
+    # )
 
 
 # Get Alpaca Credentials (usually Live or Paper)
@@ -101,6 +109,56 @@ def get_alpaca_account_balance(
         }
 
     return "Account not found"
+
+
+# Submit market order for inversely paired assets
+def alpaca_submit_pair_trade_order(
+    tradingview_symbol,
+    capital_to_deploy=capital_to_deploy_percentage,
+    calculate_tax=True,
+    buy_alert=True,
+    account=alpaca_trading_account_name_live,
+):
+    # Check if there is an inverse order open
+    alpaca_symbol = (
+        tradingview_alpaca_symbols[tradingview_symbol]
+        if buy_alert
+        else tradingview_alpaca_inverse_pairs[tradingview_symbol]
+    )
+    alpaca_inverse_symbol = (
+        tradingview_alpaca_inverse_pairs[tradingview_symbol]
+        if buy_alert
+        else tradingview_alpaca_symbols[tradingview_symbol]
+    )
+
+    # If there is no sell order found for inverse pair symbol,
+    # sell all holdings of the inverse pair and convert CGT to USDC.
+    # Assumes there is only one order open at a time
+    if (
+        check_last_filled_order_type(
+            symbol=alpaca_inverse_symbol, account=account
+        )
+    ) == OrderSide.BUY:
+        close_all_holdings_of_asset(alpaca_inverse_symbol, account)
+
+        # if calculate_tax:
+        #     profit_loss_amount = calculate_profit_loss(
+        #         kucoin_inverse_symbol, account
+        #     )
+        #     tax_amount = profit_loss_amount * tax_rate
+        #     print("tax_amount", profit_loss_amount, "\n")
+
+        #     if tax_amount > 0:
+        #         submit_market_order_custom_amount(
+        #             tax_pair, True, tax_amount, account
+        #         )
+
+    submit_market_order_custom_percentage(
+        alpaca_symbol,
+        True,
+        capital_percentage_to_deploy=capital_to_deploy,
+        account=account,
+    )
 
 
 # Submit market order based on custom percentage of entire portfolio value
@@ -166,7 +224,11 @@ def submit_market_order_custom_percentage(
             # For non-fractionable assets, calculate quantity using latest
             # quote
             latest_quote = get_latest_quote(alpaca_symbol, account)
-            price: Decimal = Decimal(latest_quote["ask_price"])
+            price: Decimal = Decimal(
+                latest_quote["bid_price"]
+                if latest_quote["bid_price"] > 0
+                else latest_quote["ask_price"]
+            )
             quantity = funds_to_deploy / price
 
             order_request = MarketOrderRequest(
@@ -222,9 +284,12 @@ def get_latest_quote(
         )
 
         try:
-            request_params = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+            request_params = StockLatestQuoteRequest(
+                symbol_or_symbols=[symbol]
+            )
             latest_quote = client.get_stock_latest_quote(request_params)
             symbol_quote = latest_quote[symbol]
+            print("symbol_quote", symbol_quote)
             print(
                 {
                     "ask_price": Decimal(symbol_quote.ask_price),
@@ -379,7 +444,7 @@ def check_last_filled_order_type(
 
         # Create filter to get last filled order of an asset
         filters = GetOrdersRequest(
-            status=QueryOrderStatus.CLOSED, limit=10, symbols=["AAPL"]
+            status=QueryOrderStatus.CLOSED, limit=10, symbols=[symbol]
         )
 
         # Fetch the list of closed orders for the specified symbol
@@ -407,3 +472,27 @@ def check_last_filled_order_type(
         )
         print("Last order was a", order_side)
         return order_side
+
+
+# Sells all holdings of an asset
+def close_all_holdings_of_asset(
+    symbol: str,
+    account: str = alpaca_trading_account_name_live,
+) -> None:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        try:
+            trading_client.close_position(symbol)
+            print(f"Submitted request to close all holdings of {symbol}")
+
+        except Exception as e:
+            print(f"An error occurred: {e}")

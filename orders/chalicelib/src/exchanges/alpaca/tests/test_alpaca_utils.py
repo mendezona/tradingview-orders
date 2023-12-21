@@ -12,6 +12,7 @@ from chalicelib.src.exchanges.alpaca.alpaca_constants import (
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
     MockAsset,
+    MockTradingClient,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_utils import (
     check_last_filled_order_type,
@@ -345,14 +346,6 @@ mock_filled_buy_order = MagicMock(
 mock_filled_sell_order = MagicMock(
     status=OrderStatus.FILLED, side=OrderSide.SELL
 )
-
-
-class MockTradingClient:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def get_orders(self, filters):
-        return []
 
 
 class TestCheckLastFilledOrderType:
