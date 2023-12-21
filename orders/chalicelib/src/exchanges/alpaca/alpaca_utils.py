@@ -23,10 +23,10 @@ def test_alpaca_function(tradingview_symbol):
 
     # get_available_asset_balance(tradingview_symbol)
 
-    submit_market_order_custom_amount(
+    submit_market_order_custom_percentage(
         alpaca_symbol=tradingview_symbol,
-        buy_side_order=False,
-        dollar_amount=2000.30009,
+        buy_side_order=True,
+        capital_percentage_to_deploy=0.1,
         account=alpaca_trading_account_name_paper,
     )
 
@@ -90,7 +90,7 @@ def get_alpaca_account_balance(
     return "Account not found"
 
 
-# Submit market order based on custom percentage
+# Submit market order based on custom percentage of entire portfolio value
 def submit_market_order_custom_percentage(
     alpaca_symbol: str,
     buy_side_order: bool = True,
@@ -109,21 +109,17 @@ def submit_market_order_custom_percentage(
             paper=credentials["paper"],
         )
 
-        # Check if asset is fractionable
-        fractionable: bool = is_asset_fractionable(
-            alpaca_symbol, trading_client
-        )
-
-        # Get account balance
         account_info: dict[str, Any] | Literal[
             "Account not found"
-        ] = get_alpaca_account_balance()
-        balance: Decimal = Decimal(account_info["account_cash"])
-        capital_percentage_to_deploy = Decimal(
-            str(capital_percentage_to_deploy)
-        )
-        funds_to_deploy: Decimal = (
-            balance * capital_percentage_to_deploy
+        ] = get_alpaca_account_balance(account_name=account)
+        account_equity: Any | str = account_info["account_equity"]
+        account_cash: Any | str = account_info["account_cash"]
+
+        # Get account balance
+        account_value = Decimal(account_equity)
+        capital_percentage_to_deploy = Decimal(capital_percentage_to_deploy)
+        funds_to_deploy = (
+            account_value * capital_percentage_to_deploy
         ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
 
         # Check if funds are sufficient
@@ -131,22 +127,46 @@ def submit_market_order_custom_percentage(
             print("Insufficient funds to deploy")
             return
 
-        # Set the order side
-        order_side = OrderSide.BUY if buy_side_order else OrderSide.SELL
+        # If funds are less that funds to deploy, deploy all cash
+        # Can be useful if funds are still settling
+        if funds_to_deploy > Decimal(account_cash):
+            funds_to_deploy = Decimal(account_cash)
 
-        # Create and submit a market order
-        try:
+        # Set the order side
+        order_side: OrderSide = "buy" if buy_side_order else "sell"
+
+        # Check if asset is fractionable
+        fractionable: bool = is_asset_fractionable(
+            alpaca_symbol, trading_client
+        )
+
+        # Prepare order parameters
+        if fractionable:
+            # For fractionable assets, use the notional value
             order_request = MarketOrderRequest(
                 symbol=alpaca_symbol,
-                notional=round(funds_to_deploy, 2)
-                if fractionable
-                else int(funds_to_deploy),
+                notional=round(funds_to_deploy, 2),
                 side=order_side,
                 time_in_force=time_in_force,
             )
+        else:
+            # For non-fractionable assets, calculate quantity using latest
+            # quote
+            latest_quote = get_latest_quote(alpaca_symbol, account)
+            price: Decimal = Decimal(latest_quote["ask_price"])
+            quantity = funds_to_deploy / price
+
+            order_request = MarketOrderRequest(
+                symbol=alpaca_symbol,
+                qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
+                side=order_side,
+                time_in_force=time_in_force,
+            )
+
+        # Create and submit the market order
+        try:
             order_response = trading_client.submit_order(order_request)
             print(f"Market {order_side} order submitted: \n", order_response)
-
         except Exception as e:
             print(f"An error occurred while submitting the order: {e}")
 
@@ -289,9 +309,7 @@ def submit_market_order_custom_amount(
         )
 
         # Set the order side
-        order_side: Literal["buy", "sell"] = (
-            "buy" if buy_side_order else "sell"
-        )
+        order_side: OrderSide = "buy" if buy_side_order else "sell"
 
         # Prepare order parameters
         # If fractionable, any amount will be okay rounded to 2 decimals
@@ -308,11 +326,7 @@ def submit_market_order_custom_amount(
         # the fund amount
         else:
             latest_quote = get_latest_quote(alpaca_symbol, account)
-            price: Decimal = (
-                Decimal(latest_quote["ask_price"])
-                if buy_side_order
-                else Decimal(latest_quote["bid_price"])
-            )
+            price: Decimal = Decimal(latest_quote["ask_price"])
 
             quantity: Decimal = funds_to_deploy / price
 
