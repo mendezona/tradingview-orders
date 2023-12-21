@@ -1,9 +1,11 @@
 from decimal import ROUND_DOWN, Decimal
 from typing import Any, Literal, Optional
 
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
-from alpaca.trading.requests import MarketOrderRequest
+from alpaca.trading.requests import MarketOrderRequest, OrderRequest
 from chalicelib.src.constants import development_mode
 from chalicelib.src.exchanges.alpaca.alpaca_constants import (
     alpaca_accounts,
@@ -17,10 +19,14 @@ from chalicelib.src.exchanges.alpaca.alpaca_types import (
 
 # Developer function, for testing
 def test_alpaca_function(tradingview_symbol):
-    submit_market_order_custom_percentage(
+    # get_latest_quote(tradingview_symbol)
+
+    # get_available_asset_balance(tradingview_symbol)
+
+    submit_market_order_custom_amount(
         alpaca_symbol=tradingview_symbol,
-        buy_side_order=True,
-        capital_percentage_to_deploy=0.3,
+        buy_side_order=False,
+        dollar_amount=2000.30009,
         account=alpaca_trading_account_name_paper,
     )
 
@@ -162,7 +168,167 @@ def is_asset_fractionable(
         )
         try:
             asset = client.get_asset(symbol)
+            print("asset fractionable: ", asset.fractionable)
             return asset.fractionable
         except Exception as e:
             print(f"Error fetching asset information: {e}")
             return False
+
+
+# Get the latest quote data for an asset
+def get_latest_quote(
+    symbol: str, account: str = alpaca_trading_account_name_live
+) -> dict:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        client = StockHistoricalDataClient(
+            api_key=credentials["key"], secret_key=credentials["secret"]
+        )
+
+        try:
+            request_params = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+            latest_quote = client.get_stock_latest_quote(request_params)
+            symbol_quote = latest_quote[symbol]
+            print(
+                {
+                    "ask_price": Decimal(symbol_quote.ask_price),
+                    "bid_price": Decimal(symbol_quote.bid_price),
+                    "ask_size": symbol_quote.ask_size,
+                    "bid_size": symbol_quote.bid_size,
+                }
+            )
+            return {
+                "ask_price": Decimal(symbol_quote.ask_price),
+                "bid_price": Decimal(symbol_quote.bid_price),
+                "ask_size": symbol_quote.ask_size,
+                "bid_size": symbol_quote.bid_size,
+            }
+        except Exception as e:
+            print(
+                f"An error occurred while fetching the latest quote for {symbol}: {e}"  # noqa: E501
+            )
+            return {
+                "ask_price": Decimal(0),
+                "bid_price": Decimal(0),
+                "ask_size": 0,
+                "bid_size": 0,
+            }
+
+    else:
+        print("No credentials available.")
+        return {
+            "ask_price": Decimal(0),
+            "bid_price": Decimal(0),
+            "ask_size": 0,
+            "bid_size": 0,
+        }
+
+
+# Get the amount of assets you own available to trade for one symbol
+def get_available_asset_balance(
+    symbol: str, account: str = alpaca_trading_account_name_live
+) -> Decimal:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        try:
+            position = trading_client.get_open_position(symbol)
+
+            print(f"Position for {symbol}: {position}")
+            print(f"Quantity of {symbol}: {position.qty}")
+            print(f"Market value for {symbol}: {position.market_value}")
+
+            return {
+                "position": position,
+                "position_qty": position.qty,
+                "position_market_value": position.market_value,
+            }
+
+        except Exception as e:
+            print(f"Error getting position for {symbol}: {e}")
+
+            return None
+
+
+# Submit a market order with a custom $ amount
+def submit_market_order_custom_amount(
+    alpaca_symbol: str,
+    dollar_amount: float,
+    buy_side_order: bool = True,
+    account: str = alpaca_trading_account_name_live,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+) -> None:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        # Check if asset is fractionable
+        fractionable: bool = is_asset_fractionable(alpaca_symbol)
+
+        # Convert dollar amount to Decimal
+        funds_to_deploy: Decimal = Decimal(dollar_amount).quantize(
+            Decimal("0.01"), rounding=ROUND_DOWN
+        )
+
+        # Set the order side
+        order_side: Literal["buy", "sell"] = (
+            "buy" if buy_side_order else "sell"
+        )
+
+        # Prepare order parameters
+        # If fractionable, any amount will be okay rounded to 2 decimals
+        if fractionable:
+            order_params: OrderRequest = OrderRequest(
+                symbol=alpaca_symbol,
+                notional=round(funds_to_deploy, 2),
+                side=order_side,
+                type="market",
+                time_in_force=time_in_force,
+            )
+
+        # If non fractionable, calculate the quantity available to buy from
+        # the fund amount
+        else:
+            latest_quote = get_latest_quote(alpaca_symbol, account)
+            price: Decimal = (
+                Decimal(latest_quote["ask_price"])
+                if buy_side_order
+                else Decimal(latest_quote["bid_price"])
+            )
+
+            quantity: Decimal = funds_to_deploy / price
+
+            order_params: OrderRequest = OrderRequest(
+                symbol=alpaca_symbol,
+                qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
+                side=order_side,
+                type="market",
+                time_in_force=time_in_force,
+            )
+
+        # Create and submit the market order
+        try:
+            order_response = trading_client.submit_order(
+                order_data=order_params
+            )
+            print(f"Market {order_side} order submitted: \n", order_response)
+        except Exception as e:
+            print(f"An error occurred while submitting the order: {e}")

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
@@ -14,7 +15,10 @@ from chalicelib.src.exchanges.alpaca.alpaca_types import (
 from chalicelib.src.exchanges.alpaca.alpaca_utils import (
     get_alpaca_account_balance,
     get_alpaca_credentials,
+    get_available_asset_balance,
+    get_latest_quote,
     is_asset_fractionable,
+    submit_market_order_custom_amount,
     submit_market_order_custom_percentage,
 )
 from chalicelib.src.exchanges.alpaca.tests.alpaca_mock_data_objects import (
@@ -198,3 +202,136 @@ class TestIsAssetFractionable:
         self, mock_get_alpaca_credentials, mock_trading_client_assets
     ):
         assert is_asset_fractionable("TSLA") is False
+
+
+# tests for submit_market_order_custom_amount helper function
+# Mock for get_latest_quote
+@pytest.fixture
+def mock_get_latest_quote(monkeypatch):
+    monkeypatch.setattr(
+        "chalicelib.src.exchanges.alpaca.alpaca_utils.get_latest_quote",
+        lambda symbol, account: {
+            "ask_price": Decimal("150"),
+            "bid_price": Decimal("149"),
+        },
+    )
+
+
+class TestSubmitMarketOrderCustomAmount:
+    def test_submit_order_fractional_asset(
+        self,
+        mock_get_alpaca_credentials,
+        mock_trading_client,
+        mock_is_asset_fractionable,
+        mock_get_latest_quote,
+    ):
+        submit_market_order_custom_amount("AAPL", 100, True)
+        assert mock_trading_client.submit_order.called
+
+    def test_submit_order_non_fractional_asset(
+        self,
+        mock_get_alpaca_credentials,
+        mock_trading_client,
+        monkeypatch,
+        mock_get_latest_quote,
+    ):
+        # Mock is_asset_fractionable to return False
+        monkeypatch.setattr(
+            "chalicelib.src.exchanges.alpaca.alpaca_utils.is_asset_fractionable",  # noqa: E501
+            lambda symbol, account=None: False,
+        )
+        submit_market_order_custom_amount("AAPL", 100, True)
+        assert mock_trading_client.submit_order.called
+
+
+# tests for helper function get_available_asset_balance
+@pytest.fixture
+def mock_trading_client_success(monkeypatch):
+    mock_position = MagicMock(qty=100, market_value=5000)
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_open_position.return_value = mock_position
+    monkeypatch.setattr(
+        "chalicelib.src.exchanges.alpaca.alpaca_utils.TradingClient",
+        lambda *args, **kwargs: mock_client_instance,
+    )
+
+
+@pytest.fixture
+def mock_trading_client_failure(monkeypatch):
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_open_position.side_effect = Exception("API Error")
+    monkeypatch.setattr(
+        "chalicelib.src.exchanges.alpaca.alpaca_utils.TradingClient",
+        lambda *args, **kwargs: mock_client_instance,
+    )
+
+
+class TestGetAvailableAssetBalance:
+    def test_get_available_asset_balance_success(
+        self, mock_get_alpaca_credentials, mock_trading_client_success
+    ):
+        result = get_available_asset_balance("AAPL")
+        assert result is not None
+        assert result["position_qty"] == 100
+        assert result["position_market_value"] == 5000
+
+    def test_get_available_asset_balance_no_credentials(
+        self, mock_get_alpaca_credentials, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "chalicelib.src.exchanges.alpaca.alpaca_utils.get_alpaca_credentials",  # noqa: E501
+            lambda _: None,
+        )
+        result = get_available_asset_balance("AAPL")
+        assert result is None
+
+    def test_get_available_asset_balance_api_error(
+        self, mock_get_alpaca_credentials, mock_trading_client_failure
+    ):
+        result = get_available_asset_balance("AAPL")
+        assert result is None
+
+
+# tests for get_latest_quote helper function
+@pytest.fixture
+def mock_stock_historical_data_client(monkeypatch):
+    mock_client = MagicMock()
+    mock_client.get_stock_latest_quote.return_value = {
+        "AAPL": MagicMock(
+            ask_price=150.50, bid_price=150.00, ask_size=100, bid_size=200
+        )
+    }
+    monkeypatch.setattr(
+        "chalicelib.src.exchanges.alpaca.alpaca_utils.StockHistoricalDataClient",  # noqa: E501
+        lambda *args, **kwargs: mock_client,
+    )
+
+
+class TestGetLatestQuote:
+    def test_get_latest_quote_success(
+        self, mock_get_alpaca_credentials, mock_stock_historical_data_client
+    ):
+        result = get_latest_quote("AAPL")
+        assert result == {
+            "ask_price": Decimal(150.50),
+            "bid_price": Decimal(150.00),
+            "ask_size": 100,
+            "bid_size": 200,
+        }
+
+    def test_get_latest_quote_failure(
+        self, mock_get_alpaca_credentials, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "chalicelib.src.exchanges.alpaca.alpaca_utils.StockHistoricalDataClient",  # noqa: E501
+            lambda *args, **kwargs: MagicMock(
+                side_effect=Exception("API Error")
+            ),
+        )
+        result = get_latest_quote("AAPL")
+        assert result == {
+            "ask_price": Decimal(0),
+            "bid_price": Decimal(0),
+            "ask_size": 0,
+            "bid_size": 0,
+        }
