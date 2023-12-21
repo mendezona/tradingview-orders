@@ -3,6 +3,7 @@ from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
+from alpaca.trading.enums import OrderSide, OrderStatus
 from chalicelib.src.exchanges.alpaca.alpaca_constants import (
     alpaca_paper_trading_endpoint,
     alpaca_trading_account_name_live,
@@ -13,13 +14,13 @@ from chalicelib.src.exchanges.alpaca.alpaca_types import (
     MockAsset,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_utils import (
+    check_last_filled_order_type,
     get_alpaca_account_balance,
     get_alpaca_credentials,
     get_available_asset_balance,
     get_latest_quote,
     is_asset_fractionable,
     submit_market_order_custom_amount,
-    submit_market_order_custom_percentage,
 )
 from chalicelib.src.exchanges.alpaca.tests.alpaca_mock_data_objects import (
     mock_account_details,
@@ -162,7 +163,7 @@ def mock_is_asset_fractionable():
 #         mock_trading_client,
 #         mock_is_asset_fractionable,
 #     ):
-#         mock_trading_client.submit_order.side_effect = Exception("Test error")
+#         mock_trading_client.submit_order.side_effect = Exception("Test error") # noqa: E501
 #         submit_market_order_custom_percentage(
 #             "AAPL", True, 0.5, "test_account"
 #         )
@@ -335,3 +336,54 @@ class TestGetLatestQuote:
             "ask_size": 0,
             "bid_size": 0,
         }
+
+
+# tests for check_last_filled_order_type helper function
+mock_filled_buy_order = MagicMock(
+    status=OrderStatus.FILLED, side=OrderSide.BUY
+)
+mock_filled_sell_order = MagicMock(
+    status=OrderStatus.FILLED, side=OrderSide.SELL
+)
+
+
+class MockTradingClient:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def get_orders(self, filters):
+        return []
+
+
+class TestCheckLastFilledOrderType:
+    @pytest.fixture(autouse=True)
+    def setup_mocks(self, monkeypatch):
+        monkeypatch.setattr(
+            "chalicelib.src.exchanges.alpaca.alpaca_utils.get_alpaca_credentials",  # noqa: E501
+            lambda x: mock_credentials,
+        )
+        monkeypatch.setattr(
+            "chalicelib.src.exchanges.alpaca.alpaca_utils.TradingClient",
+            MockTradingClient,
+        )
+
+    def test_last_order_none(self, monkeypatch):
+        monkeypatch.setattr(
+            "chalicelib.src.exchanges.alpaca.alpaca_utils.TradingClient.get_orders",  # noqa: E501
+            MagicMock(return_value=[]),
+        )
+        assert check_last_filled_order_type("AAPL") == "none"
+
+    def test_last_order_buy(self, monkeypatch):
+        monkeypatch.setattr(
+            "chalicelib.src.exchanges.alpaca.alpaca_utils.TradingClient.get_orders",  # noqa: E501
+            MagicMock(return_value=[mock_filled_buy_order]),
+        )
+        assert check_last_filled_order_type("AAPL") == "buy"
+
+    def test_last_order_sell(self, monkeypatch):
+        monkeypatch.setattr(
+            "chalicelib.src.exchanges.alpaca.alpaca_utils.TradingClient.get_orders",  # noqa: E501
+            MagicMock(return_value=[mock_filled_sell_order]),
+        )
+        assert check_last_filled_order_type("AAPL") == "sell"

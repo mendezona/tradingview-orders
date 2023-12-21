@@ -4,8 +4,17 @@ from typing import Any, Literal, Optional
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
-from alpaca.trading.enums import OrderSide, TimeInForce
-from alpaca.trading.requests import MarketOrderRequest, OrderRequest
+from alpaca.trading.enums import (
+    OrderSide,
+    OrderStatus,
+    QueryOrderStatus,
+    TimeInForce,
+)
+from alpaca.trading.requests import (
+    GetOrdersRequest,
+    MarketOrderRequest,
+    OrderRequest,
+)
 from chalicelib.src.constants import development_mode
 from chalicelib.src.exchanges.alpaca.alpaca_constants import (
     alpaca_accounts,
@@ -23,11 +32,15 @@ def test_alpaca_function(tradingview_symbol):
 
     # get_available_asset_balance(tradingview_symbol)
 
-    submit_market_order_custom_percentage(
-        alpaca_symbol=tradingview_symbol,
-        buy_side_order=True,
-        capital_percentage_to_deploy=0.1,
-        account=alpaca_trading_account_name_paper,
+    # submit_market_order_custom_percentage(
+    #     alpaca_symbol="AAPL",
+    #     buy_side_order=False,
+    #     capital_percentage_to_deploy=0.05,
+    #     account=alpaca_trading_account_name_paper,
+    # )
+
+    check_last_filled_order_type(
+        "TSLT", account=alpaca_trading_account_name_paper
     )
 
 
@@ -346,3 +359,51 @@ def submit_market_order_custom_amount(
             print(f"Market {order_side} order submitted: \n", order_response)
         except Exception as e:
             print(f"An error occurred while submitting the order: {e}")
+
+
+# Find if last order filled order for an asset was buy or a sell
+def check_last_filled_order_type(
+    symbol: str,
+    account: str = alpaca_trading_account_name_live,
+) -> str:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        # Create filter to get last filled order of an asset
+        filters = GetOrdersRequest(
+            status=QueryOrderStatus.CLOSED, limit=10, symbols=["AAPL"]
+        )
+
+        # Fetch the list of closed orders for the specified symbol
+        closed_orders = trading_client.get_orders(filters)
+
+        # Filter out only filled orders
+        filled_orders = [
+            order
+            for order in closed_orders
+            if order.status is OrderStatus.FILLED
+        ]
+
+        print("filled orders", filled_orders)
+
+        # Check if there are any filled orders
+        if not filled_orders:
+            return "none"
+
+        # Get the most recent filled order
+        last_filled_order = filled_orders[0]
+
+        # Return 'buy' or 'sell' based on the side of the last filled order
+        order_side: Literal["buy", "sell"] = (
+            "buy" if last_filled_order.side == OrderSide.BUY else "sell"
+        )
+        print("Last order was a", order_side)
+        return order_side
