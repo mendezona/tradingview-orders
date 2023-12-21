@@ -4,7 +4,10 @@ from chalicelib.src.aws.dynamo_db import (
     create_new_dynamodb_instance,
     save_item_to_dynamodb_table,
 )
-from chalicelib.src.exchanges.alpaca.alpaca_utils import test_alpaca_function
+from chalicelib.src.exchanges.alpaca.alpaca_utils import (
+    alpaca_submit_pair_trade_order,
+    test_alpaca_function,
+)
 from chalicelib.src.exchanges.kucoin.kucoin_constants import (
     kucoin_account_names,
     tax_pair,
@@ -26,8 +29,27 @@ def hello():
     return {"hello": "world"}
 
 
+# Developer function, create new DynamoDB instance with desired
+# table name
+@app.route("/createnewdynamodbinstance")
+def create_new_db():
+    create_new_dynamodb_instance(
+        dynamodb_table_names_instance.alpaca_markets_profits
+    )
+
+    return {"dynamodb": "new table created"}
+
+
+"""
+Alpaca Routes
+"""
+
+
 @app.route("/alpacatest")
 def alpaca_test():
+    # request = app.current_request
+    # tradingViewWebhookMessage = request.json_body
+    # print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     test_alpaca_function()
 
     return {"hello": "world"}
@@ -38,9 +60,62 @@ def alpaca_pair_trade_buy_alert():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
-    test_alpaca_function(tradingViewWebhookMessage["ticker"])
+    alpaca_submit_pair_trade_order(tradingViewWebhookMessage["ticker"])
 
     return {"message": "market order executed"}
+
+
+@app.route("/alpacapairtradesellalert", methods=["POST"])
+def pair_trade_sell_alert():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    alpaca_submit_pair_trade_order(
+        tradingViewWebhookMessage["ticker"], buy_alert=False
+    )
+
+    return {
+        "message": "alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
+
+
+@app.route("/alpacapairtradebuyalertnotax", methods=["POST"])
+def pair_trade_buy_alert_no_tax():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    alpaca_submit_pair_trade_order(
+        tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        calculate_tax=False,
+    )
+
+    return {
+        "message": "alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
+
+
+@app.route("/alpacapairtradesellalertnotax", methods=["POST"])
+def pair_trade_sell_alert_no_tax():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    alpaca_submit_pair_trade_order(
+        tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        calculate_tax=False,
+        buy_alert=False,
+    )
+
+    return {
+        "message": "alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
+
+
+"""
+Kucoin Routes
+"""
 
 
 # Developer function, convert assets in Kucoin subaccount to a stablecoin
@@ -72,17 +147,6 @@ def reset_funds_to_stablecoin():
 """
 Save historical Tradingview Alerts
 """
-
-
-# Developer function, create new DynamoDB instance with desired
-# table name
-@app.route("/createnewdynamodbinstance")
-def create_new_db():
-    create_new_dynamodb_instance(
-        dynamodb_table_names_instance.ptos_signal_alerts
-    )
-
-    return {"dynamodb": "new table created"}
 
 
 @app.route("/saveptosmodelalerts", methods=["POST"])
