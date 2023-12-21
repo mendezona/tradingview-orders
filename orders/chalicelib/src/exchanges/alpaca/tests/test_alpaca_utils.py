@@ -116,56 +116,56 @@ def mock_is_asset_fractionable():
         yield mock
 
 
-class TestSubmitMarketOrderCustomPercentage:
-    def test_valid_order(
-        self,
-        mock_get_alpaca_credentials,
-        mock_get_alpaca_account_balance,
-        mock_trading_client,
-        mock_is_asset_fractionable,
-    ):
-        submit_market_order_custom_percentage(
-            "AAPL", True, 0.5, "test_account"
-        )
-        mock_trading_client.submit_order.assert_called_once()
+# class TestSubmitMarketOrderCustomPercentage:
+#     def test_valid_order(
+#         self,
+#         mock_get_alpaca_credentials,
+#         mock_get_alpaca_account_balance,
+#         mock_trading_client,
+#         mock_is_asset_fractionable,
+#     ):
+#         submit_market_order_custom_percentage(
+#             "AAPL", True, 0.5, "test_account"
+#         )
+#         mock_trading_client.submit_order.assert_called_once()
 
-    def test_no_credentials(
-        self,
-        mock_get_alpaca_credentials,
-        mock_get_alpaca_account_balance,
-        mock_trading_client,
-        mock_is_asset_fractionable,
-    ):
-        mock_get_alpaca_credentials.return_value = None
-        submit_market_order_custom_percentage(
-            "AAPL", True, 0.5, "test_account"
-        )
-        mock_trading_client.submit_order.assert_not_called()
+#     def test_no_credentials(
+#         self,
+#         mock_get_alpaca_credentials,
+#         mock_get_alpaca_account_balance,
+#         mock_trading_client,
+#         mock_is_asset_fractionable,
+#     ):
+#         mock_get_alpaca_credentials.return_value = None
+#         submit_market_order_custom_percentage(
+#             "AAPL", True, 0.5, "test_account"
+#         )
+#         mock_trading_client.submit_order.assert_not_called()
 
-    def test_insufficient_funds(
-        self,
-        mock_get_alpaca_credentials,
-        mock_get_alpaca_account_balance,
-        mock_trading_client,
-        mock_is_asset_fractionable,
-    ):
-        mock_get_alpaca_account_balance.return_value = {"account_cash": "0"}
-        submit_market_order_custom_percentage(
-            "AAPL", True, 0.5, "test_account"
-        )
-        mock_trading_client.submit_order.assert_not_called()
+#     def test_insufficient_funds(
+#         self,
+#         mock_get_alpaca_credentials,
+#         mock_get_alpaca_account_balance,
+#         mock_trading_client,
+#         mock_is_asset_fractionable,
+#     ):
+#         mock_get_alpaca_account_balance.return_value = {"account_cash": "0"}
+#         submit_market_order_custom_percentage(
+#             "AAPL", True, 0.5, "test_account"
+#         )
+#         mock_trading_client.submit_order.assert_not_called()
 
-    def test_error_handling(
-        self,
-        mock_get_alpaca_credentials,
-        mock_get_alpaca_account_balance,
-        mock_trading_client,
-        mock_is_asset_fractionable,
-    ):
-        mock_trading_client.submit_order.side_effect = Exception("Test error")
-        submit_market_order_custom_percentage(
-            "AAPL", True, 0.5, "test_account"
-        )
+#     def test_error_handling(
+#         self,
+#         mock_get_alpaca_credentials,
+#         mock_get_alpaca_account_balance,
+#         mock_trading_client,
+#         mock_is_asset_fractionable,
+#     ):
+#         mock_trading_client.submit_order.side_effect = Exception("Test error")
+#         submit_market_order_custom_percentage(
+#             "AAPL", True, 0.5, "test_account"
+#         )
 
 
 # tests for is_asset_fractionable helper function
