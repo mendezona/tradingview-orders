@@ -29,6 +29,17 @@ def hello():
     return {"hello": "world"}
 
 
+# Developer function, create new DynamoDB instance with desired
+# table name
+@app.route("/createnewdynamodbinstance")
+def create_new_db():
+    create_new_dynamodb_instance(
+        dynamodb_table_names_instance.alpaca_markets_profits
+    )
+
+    return {"dynamodb": "new table created"}
+
+
 """
 Alpaca Routes
 """
@@ -136,17 +147,6 @@ def reset_funds_to_stablecoin():
 """
 Save historical Tradingview Alerts
 """
-
-
-# Developer function, create new DynamoDB instance with desired
-# table name
-@app.route("/createnewdynamodbinstance")
-def create_new_db():
-    create_new_dynamodb_instance(
-        dynamodb_table_names_instance.ptos_signal_alerts
-    )
-
-    return {"dynamodb": "new table created"}
 
 
 @app.route("/saveptosmodelalerts", methods=["POST"])

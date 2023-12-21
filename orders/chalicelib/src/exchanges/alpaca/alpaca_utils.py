@@ -1,6 +1,8 @@
+from datetime import datetime
 from decimal import ROUND_DOWN, Decimal
-from typing import Any, Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
+import boto3
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
@@ -15,7 +17,10 @@ from alpaca.trading.requests import (
     MarketOrderRequest,
     OrderRequest,
 )
+from boto3.dynamodb.conditions import Key
+from chalicelib.src.aws.aws_constants import dynamodb_table_names_instance
 from chalicelib.src.constants import (
+    berlin_tz,
     capital_to_deploy_percentage,
     development_mode,
     tax_rate,
@@ -34,22 +39,7 @@ from chalicelib.src.exchanges.alpaca.alpaca_types import (
 
 # Developer function, for testing
 def test_alpaca_function():
-    # get_latest_quote(tradingview_symbol)
-
-    # get_available_asset_balance(tradingview_symbol)
-
-    # submit_market_order_custom_percentage(
-    #     alpaca_symbol="AAPL",
-    #     buy_side_order=False,
-    #     capital_percentage_to_deploy=0.05,
-    #     account=alpaca_trading_account_name_paper,
-    # )
-
-    get_latest_quote(symbol="TSLT", account=alpaca_trading_account_name_paper)
-
-    # close_all_holdings_of_asset(
-    #     "AAPL", account=alpaca_trading_account_name_paper
-    # )
+    get_last_running_total()
 
 
 # Get Alpaca Credentials (usually Live or Paper)
@@ -98,14 +88,27 @@ def get_alpaca_account_balance(
             trading_client.get_account()
         )
 
+        last_running_total = get_last_running_total()
+        running_total_of_taxable_profits: Decimal = (
+            last_running_total
+            if last_running_total is not None
+            else Decimal(0)
+        )
+        equity: Decimal = (
+            Decimal(account.equity) - running_total_of_taxable_profits
+        )
+        cash: Decimal = (
+            Decimal(account.cash) - running_total_of_taxable_profits
+        )
+
         print("account", account)
-        print("equity:", account.equity)
-        print("cash:", account.cash)
+        print("equity:", equity)
+        print("cash:", cash)
 
         return {
             "account": account,
-            "account_equity": account.equity,
-            "account_cash": account.cash,
+            "account_equity": equity,
+            "account_cash": cash,
         }
 
     return "Account not found"
@@ -132,7 +135,7 @@ def alpaca_submit_pair_trade_order(
     )
 
     # If there is no sell order found for inverse pair symbol,
-    # sell all holdings of the inverse pair and convert CGT to USDC.
+    # sell all holdings of the inverse pair and save CGT to DynamoDB
     # Assumes there is only one order open at a time
     if (
         check_last_filled_order_type(
@@ -141,17 +144,24 @@ def alpaca_submit_pair_trade_order(
     ) == OrderSide.BUY:
         close_all_holdings_of_asset(alpaca_inverse_symbol, account)
 
-        # if calculate_tax:
-        #     profit_loss_amount = calculate_profit_loss(
-        #         kucoin_inverse_symbol, account
-        #     )
-        #     tax_amount = profit_loss_amount * tax_rate
-        #     print("tax_amount", profit_loss_amount, "\n")
+        if calculate_tax:
+            profit_loss_amount = calculate_profit_loss(
+                alpaca_inverse_symbol, account
+            )
+            tax_amount: Decimal = Decimal(profit_loss_amount) * Decimal(
+                tax_rate
+            )
+            print("tax_amount", profit_loss_amount, "\n")
 
-        #     if tax_amount > 0:
-        #         submit_market_order_custom_amount(
-        #             tax_pair, True, tax_amount, account
-        #         )
+            if tax_amount > 0:
+                timestamp: str = datetime.now(berlin_tz).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                save_CGT_amount_to_dynamoDB(
+                    asset=alpaca_inverse_symbol,
+                    profit=tax_amount,
+                    transaction_date=timestamp,
+                )
 
     submit_market_order_custom_percentage(
         alpaca_symbol,
@@ -496,3 +506,142 @@ def close_all_holdings_of_asset(
 
         except Exception as e:
             print(f"An error occurred: {e}")
+
+
+# calculate profit or loss from trade
+def calculate_profit_loss(
+    symbol: str,
+    account: str = alpaca_trading_account_name_live,
+) -> Decimal:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        # Create a request for fetching closed orders for the specified symbol
+        orders_request = GetOrdersRequest(
+            status=QueryOrderStatus.CLOSED, symbols=[symbol], limit=2
+        )
+
+        # Fetch the last 2 closed orders
+        last_two_orders = trading_client.get_orders(filter=orders_request)
+
+        # Initialize variables for the last buy and sell prices
+        last_buy_price = None
+        last_sell_price = None
+        last_sell_quantity = None
+
+        # Process the last two orders
+        for order in last_two_orders:
+            if order.symbol == symbol:
+                if order.side == OrderSide.BUY and last_buy_price is None:
+                    last_buy_price = Decimal(order.filled_avg_price)
+                elif order.side == OrderSide.SELL and last_sell_price is None:
+                    last_sell_price = Decimal(order.filled_avg_price)
+                    last_sell_quantity = Decimal(order.filled_qty)
+
+        # Ensure both a buy and a sell order were found
+        if (
+            last_buy_price is None
+            or last_sell_price is None
+            or last_sell_quantity is None
+        ):
+            raise ValueError(
+                "Could not find both a buy and a sell order in the last two orders."  # noqa: E501
+            )
+
+        # Calculate profit or loss
+        profit_loss: Decimal = (
+            last_sell_price - last_buy_price
+        ) * last_sell_quantity
+
+        print("Profit/loss", profit_loss)
+        return profit_loss
+
+
+# save the CGT amount to DynamoDB
+def save_CGT_amount_to_dynamoDB(
+    asset: str,
+    transaction_date: str,
+    profit: float,
+    table_name: str = None,
+    gsi_name: str = "DateIndex",
+) -> Dict:
+    if table_name is None:
+        table_name = dynamodb_table_names_instance.alpaca_markets_profits
+
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table(table_name)
+
+    # Fetch the last entry across all assets using the GSI
+    response = table.query(
+        IndexName=gsi_name,
+        KeyConditionExpression=Key("DateKey").eq("ALL"),
+        ScanIndexForward=False,
+        Limit=1,
+    )
+
+    # Calculate the new running total
+    if response["Items"]:
+        last_item = response["Items"][0]
+        running_total: Decimal = Decimal(
+            last_item.get("RunningTotal", 0)
+        ) + Decimal(profit)
+    else:
+        running_total = Decimal(profit)
+
+    # Prepare the new item with DateKey for the GSI
+    new_item = {
+        "Asset": asset,
+        "TransactionDate": transaction_date,
+        "Profit": Decimal(profit),
+        "RunningTotal": running_total,
+        "DateKey": "ALL",  # Constant value for all items for the GSI
+    }
+
+    # Add the new item to the table
+    table.put_item(Item=new_item)
+
+    print("New item added to DynamoDB table")
+    return new_item
+
+
+# get the current running total of CGT amount
+def get_last_running_total(
+    asset: str = None, table_name: str = None, gsi_name: str = "DateIndex"
+) -> Optional[Decimal]:
+    if table_name is None:
+        table_name = dynamodb_table_names_instance.alpaca_markets_profits
+
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table(table_name)
+
+    if asset:
+        # Query for a specific asset
+        response = table.query(
+            KeyConditionExpression=Key("Asset").eq(asset),
+            ScanIndexForward=False,
+            Limit=1,
+        )
+    else:
+        # Query the GSI for the last entry across all assets
+        response = table.query(
+            IndexName=gsi_name,
+            KeyConditionExpression=Key("DateKey").eq("ALL"),
+            ScanIndexForward=False,
+            Limit=1,
+        )
+
+    if response["Items"]:
+        last_item = response["Items"][0]
+        running_total = Decimal(last_item.get("RunningTotal", 0))
+        print("Last running total:", running_total)
+        return running_total
+    else:
+        return Decimal(0)

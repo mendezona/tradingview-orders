@@ -7,25 +7,55 @@ dynamodb = boto3.resource("dynamodb")
 
 
 # Developer function, create DynamoDB instance
-def create_new_dynamodb_instance(table_name):
-    dynamodb.create_table(
+def create_new_dynamodb_instance(table_name: str):
+    dynamodb = boto3.resource("dynamodb")
+
+    # Create a new DynamoDB table with a Global Secondary Index
+    table = dynamodb.create_table(
         TableName=table_name,
         KeySchema=[
-            {"AttributeName": "ticker", "KeyType": "HASH"},
             {
-                "AttributeName": "interval_alertType_time",
+                "AttributeName": "Asset",
+                "KeyType": "HASH",
+            },  # Partition key: Stock symbol
+            {
+                "AttributeName": "TransactionDate",
                 "KeyType": "RANGE",
-            },
+            },  # Sort key: Date of the transaction
         ],
         AttributeDefinitions=[
             {
-                "AttributeName": "ticker",
+                "AttributeName": "Asset",
                 "AttributeType": "S",
-            },
+            },  # String type for stock symbol
             {
-                "AttributeName": "interval_alertType_time",
+                "AttributeName": "TransactionDate",
                 "AttributeType": "S",
-            },
+            },  # String type for transaction date
+            {
+                "AttributeName": "DateKey",
+                "AttributeType": "S",
+            },  # Additional attribute for GSI
+        ],
+        GlobalSecondaryIndexes=[
+            {
+                "IndexName": "DateIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "DateKey",
+                        "KeyType": "HASH",  # Partition key for the GSI
+                    },
+                    {
+                        "AttributeName": "TransactionDate",
+                        "KeyType": "RANGE",  # Sort key for the GSI
+                    },
+                ],
+                "Projection": {"ProjectionType": "ALL"},
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": 5,
+                    "WriteCapacityUnits": 5,
+                },
+            }
         ],
         ProvisionedThroughput={
             "ReadCapacityUnits": 5,
@@ -33,7 +63,10 @@ def create_new_dynamodb_instance(table_name):
         },
     )
 
-    return "Dynamodb ", table_name, "created"
+    # Wait until the table exists.
+    table.meta.client.get_waiter("table_exists").wait(TableName=table_name)
+
+    return f"DynamoDB table '{table_name}' created"
 
 
 # Get DynamoDB instance by table name
