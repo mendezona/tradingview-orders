@@ -1,10 +1,17 @@
 from datetime import datetime
 from decimal import ROUND_DOWN, Decimal
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional, Union
 
 import boto3
+from alpaca.common.types import RawData
+from alpaca.data import Quote, QuoteSet
 from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockLatestQuoteRequest
+from alpaca.data.requests import (
+    StockBarsRequest,
+    StockLatestQuoteRequest,
+    StockQuotesRequest,
+)
+from alpaca.data.timeframe import TimeFrame
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import (
     OrderSide,
@@ -39,7 +46,7 @@ from chalicelib.src.exchanges.alpaca.alpaca_types import (
 
 # Developer function, for testing
 def test_alpaca_function():
-    get_last_running_total()
+    get_latest_quote("TSLT")
 
 
 # Get Alpaca Credentials (usually Live or Paper)
@@ -235,15 +242,23 @@ def submit_market_order_custom_percentage(
             # quote
             latest_quote = get_latest_quote(alpaca_symbol, account)
             price: Decimal = Decimal(
-                latest_quote["bid_price"]
-                if latest_quote["bid_price"] > 0
-                else latest_quote["ask_price"]
+                latest_quote["ask_price"]
+                if latest_quote["bid_price"] == Decimal(0)
+                else latest_quote["bid_price"]
             )
-            quantity = funds_to_deploy / price
+            quantity = Decimal(funds_to_deploy) / price
+
+            print("PRICE", price)
+
+            print(
+                "QUANTITY",
+                quantity,
+                quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
+            )
 
             order_request = MarketOrderRequest(
                 symbol=alpaca_symbol,
-                qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
+                notional=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
                 side=order_side,
                 time_in_force=time_in_force,
             )
@@ -289,50 +304,81 @@ def get_latest_quote(
     )
 
     if credentials:
-        client = StockHistoricalDataClient(
+        client: StockHistoricalDataClient = StockHistoricalDataClient(
             api_key=credentials["key"], secret_key=credentials["secret"]
         )
 
         try:
-            request_params = StockLatestQuoteRequest(
-                symbol_or_symbols=[symbol]
+            # Primary method: StockLatestQuoteRequest
+            request_params_latest: StockLatestQuoteRequest = (
+                StockLatestQuoteRequest(symbol_or_symbols=[symbol])
             )
-            latest_quote = client.get_stock_latest_quote(request_params)
-            symbol_quote = latest_quote[symbol]
-            print("symbol_quote", symbol_quote)
-            print(
-                {
-                    "ask_price": Decimal(symbol_quote.ask_price),
-                    "bid_price": Decimal(symbol_quote.bid_price),
-                    "ask_size": symbol_quote.ask_size,
-                    "bid_size": symbol_quote.bid_size,
+            latest_quote: Union[
+                Dict[str, Quote], RawData
+            ] = client.get_stock_latest_quote(request_params_latest)
+            symbol_quote_latest: Quote = latest_quote[symbol]
+            if (
+                symbol_quote_latest.bid_price > 0
+                or symbol_quote_latest.ask_price > 0
+            ):
+                latest_quote = {
+                    "ask_price": Decimal(symbol_quote_latest.ask_price),
+                    "bid_price": Decimal(symbol_quote_latest.bid_price),
+                    "ask_size": symbol_quote_latest.ask_size,
+                    "bid_size": symbol_quote_latest.bid_size,
                 }
+
+                print("Latest quote found:", latest_quote)
+                return latest_quote
+
+            # Backup method: StockQuotesRequest
+            request_params_quotes: StockQuotesRequest = StockQuotesRequest(
+                symbol_or_symbols=[symbol], limit=1
             )
-            return {
-                "ask_price": Decimal(symbol_quote.ask_price),
-                "bid_price": Decimal(symbol_quote.bid_price),
-                "ask_size": symbol_quote.ask_size,
-                "bid_size": symbol_quote.bid_size,
+            quotes: Union[QuoteSet, RawData] = client.get_stock_quotes(
+                request_params_quotes
+            )
+            quote = quotes[symbol][0]
+            if quote.bid_price and quote.ask_price:
+                latest_quote = {
+                    "ask_price": Decimal(quote.ask_price),
+                    "bid_price": Decimal(quote.bid_price),
+                    "ask_size": quote.ask_size,
+                    "bid_size": quote.bid_size,
+                }
+
+                print(
+                    "Latest quote not found, most recent Stock Quote:",
+                    latest_quote,
+                )
+                return latest_quote
+
+            # Secondary backup: StockBarsRequest
+            bar_request_params = StockBarsRequest(
+                symbol_or_symbols=[symbol], timeframe=TimeFrame.Minute, limit=1
+            )
+            bars = client.get_stock_bars(bar_request_params)
+            bar = bars[symbol][0]
+            latest_quote = {
+                "ask_price": Decimal(bar.close),
+                "bid_price": Decimal(bar.close),
+                "close_price": Decimal(bar.close),
+                "volume": bar.volume,
             }
-        except Exception as e:
+
             print(
-                f"An error occurred while fetching the latest quote for {symbol}: {e}"  # noqa: E501
+                "Quote not found, latest historical bar close minute price:",
+                latest_quote,
             )
-            return {
-                "ask_price": Decimal(0),
-                "bid_price": Decimal(0),
-                "ask_size": 0,
-                "bid_size": 0,
-            }
+            return latest_quote
+
+        except Exception as e:
+            print(f"An error occurred while fetching data for {symbol}: {e}")
+            return {"error": str(e)}
 
     else:
         print("No credentials available.")
-        return {
-            "ask_price": Decimal(0),
-            "bid_price": Decimal(0),
-            "ask_size": 0,
-            "bid_size": 0,
-        }
+        return {"error": "No credentials"}
 
 
 # Get the amount of assets you own available to trade for one symbol
@@ -412,9 +458,14 @@ def submit_market_order_custom_amount(
 
         # If non fractionable, calculate the quantity available to buy from
         # the fund amount
+
         else:
             latest_quote = get_latest_quote(alpaca_symbol, account)
-            price: Decimal = Decimal(latest_quote["ask_price"])
+            price: Decimal = Decimal(
+                latest_quote["ask_price"]
+                if latest_quote["bid_price"] == Decimal(0)
+                else latest_quote["bid_price"]
+            )
 
             quantity: Decimal = funds_to_deploy / price
 
