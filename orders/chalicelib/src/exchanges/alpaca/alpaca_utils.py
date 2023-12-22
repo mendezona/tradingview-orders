@@ -246,19 +246,11 @@ def submit_market_order_custom_percentage(
                 if latest_quote["bid_price"] == Decimal(0)
                 else latest_quote["bid_price"]
             )
-            quantity = Decimal(funds_to_deploy) / price
-
-            print("PRICE", price)
-
-            print(
-                "QUANTITY",
-                quantity,
-                quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
-            )
+            quantity: Decimal = Decimal(funds_to_deploy) / price
 
             order_request = MarketOrderRequest(
                 symbol=alpaca_symbol,
-                notional=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
+                qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
                 side=order_side,
                 time_in_force=time_in_force,
             )
