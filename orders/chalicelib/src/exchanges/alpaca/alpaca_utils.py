@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from decimal import ROUND_DOWN, Decimal
 from typing import Any, Dict, Literal, Optional, Union
@@ -148,9 +149,19 @@ def alpaca_submit_pair_trade_order(
         check_last_filled_order_type(
             symbol=alpaca_inverse_symbol, account=account
         )
-    ) == OrderSide.BUY:
+        == OrderSide.BUY
+    ):
         close_all_holdings_of_asset(alpaca_inverse_symbol, account)
 
+        # Wait for up to 10 seconds for holdings to close
+        timeout = 10  # timeout in seconds
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if are_holdings_closed(alpaca_inverse_symbol, account):
+                break
+            time.sleep(1)  # Wait for 1 second before checking again
+
+        # Calculate and save tax, if applicable
         if calculate_tax:
             profit_loss_amount = calculate_profit_loss(
                 alpaca_inverse_symbol, account
@@ -688,3 +699,42 @@ def get_last_running_total(
         return running_total
     else:
         return Decimal(0)
+
+
+def are_holdings_closed(
+    symbol: str,
+    account: str = alpaca_trading_account_name_live,
+) -> bool:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        try:
+            # Fetch the list of open positions
+            open_positions = trading_client.get_all_positions()
+
+            # Check if the specified symbol is in the list of open positions
+            for position in open_positions:
+                if position.symbol == symbol and float(position.qty) > 0:
+                    return (
+                        False  # There are still open positions for this symbol
+                    )
+
+            return True  # No open positions found for this symbol
+
+        except Exception as e:
+            print(
+                f"An error occurred while checking holdings for {symbol}: {e}"
+            )
+            return False  # Assume holdings are not closed in case of error
+
+    else:
+        print("No credentials available.")
+        return False  # Cannot check without credentials

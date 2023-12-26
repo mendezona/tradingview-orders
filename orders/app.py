@@ -66,7 +66,7 @@ def alpaca_pair_trade_buy_alert():
 
 
 @app.route("/alpacapairtradesellalert", methods=["POST"])
-def pair_trade_sell_alert():
+def alpaca_pair_trade_sell_alert():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
@@ -81,7 +81,7 @@ def pair_trade_sell_alert():
 
 
 @app.route("/alpacapairtradebuyalertnotax", methods=["POST"])
-def pair_trade_buy_alert_no_tax():
+def alpaca_pair_trade_buy_alert_no_tax():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
@@ -97,7 +97,7 @@ def pair_trade_buy_alert_no_tax():
 
 
 @app.route("/alpacapairtradesellalertnotax", methods=["POST"])
-def pair_trade_sell_alert_no_tax():
+def alpaca_pair_trade_sell_alert_no_tax():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
@@ -132,12 +132,16 @@ def transfer_funds_to_stablecoin():
 # Developer function, reset Kucoin account to all Stablecoins
 @app.route("/resettostablecoin")
 def reset_funds_to_stablecoin():
-    # SET ACCOUNT AND BASE AND QUOTE CURRENCIES
-    pairToReset: str = "BASE-QUOTE"
-    account: str = kucoin_account_names[1]
+    # SET BASE AND QUOTE CURRENCIES
+    # SET ACCOUNT OR SUBACCOUNT
+    # SET TRUE OR FALSE BUY
+    # SET BUY PERCENTAGE CAPITAL
+    pairToReset: str = "RNDRUP-USDT"
+    account: str = kucoin_account_names[2]
     submit_market_order_custom_percentage(
         pairToReset,
         False,
+        capital_percentage_to_deploy=1,
         account=account,
     )
 
@@ -187,7 +191,10 @@ def pair_trade_buy_alert():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
-    submit_pair_trade_order(tradingViewWebhookMessage["ticker"])
+    submit_pair_trade_order(
+        tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
+    )
 
     return {
         "message": "alert received",
@@ -202,6 +209,7 @@ def pair_trade_sell_alert():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         buy_alert=False,
     )
 
@@ -218,6 +226,7 @@ def pair_trade_buy_alert_no_tax():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         calculate_tax=False,
     )
 
@@ -234,6 +243,7 @@ def pair_trade_sell_alert_no_tax():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         calculate_tax=False,
         buy_alert=False,
     )
@@ -256,6 +266,7 @@ def sub_1_pair_trade_buy_alert():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         account=kucoin_account_names[1],
     )
 
@@ -272,6 +283,7 @@ def sub_1_pair_trade_sell_alert():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         buy_alert=False,
         account=kucoin_account_names[1],
     )
@@ -289,6 +301,7 @@ def sub_1_pair_trade_buy_alert_no_tax():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         calculate_tax=False,
         account=kucoin_account_names[1],
     )
@@ -306,6 +319,7 @@ def sub_1_pair_trade_sell_alert_no_tax():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         calculate_tax=False,
         buy_alert=False,
         account=kucoin_account_names[1],
@@ -329,6 +343,7 @@ def sub_2_pair_trade_buy_alert():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         account=kucoin_account_names[2],
     )
 
@@ -345,6 +360,7 @@ def sub_2_pair_trade_sell_alert():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         buy_alert=False,
         account=kucoin_account_names[2],
     )
@@ -362,6 +378,7 @@ def sub_2_pair_trade_buy_alert_no_tax():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         calculate_tax=False,
         account=kucoin_account_names[2],
     )
@@ -379,9 +396,84 @@ def sub_2_pair_trade_sell_alert_no_tax():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     submit_pair_trade_order(
         tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
         calculate_tax=False,
         buy_alert=False,
         account=kucoin_account_names[2],
+    )
+
+    return {
+        "message": "alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
+
+
+@app.route("/sub3pairtradebuyalertnotax", methods=["POST"])
+def sub_3_pair_trade_buy_alert_no_tax():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    submit_pair_trade_order(
+        tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
+        calculate_tax=False,
+        account=kucoin_account_names[3],
+    )
+
+    return {
+        "message": "alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
+
+
+@app.route("/sub3pairtradesellalertnotax", methods=["POST"])
+def sub_3_pair_trade_sell_alert_no_tax():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    submit_pair_trade_order(
+        tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
+        calculate_tax=False,
+        buy_alert=False,
+        account=kucoin_account_names[3],
+    )
+
+    return {
+        "message": "alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
+
+
+@app.route("/sub4pairtradebuyalertnotax", methods=["POST"])
+def sub_4_pair_trade_buy_alert_no_tax():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    submit_pair_trade_order(
+        tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
+        calculate_tax=False,
+        account=kucoin_account_names[4],
+    )
+
+    return {
+        "message": "alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
+
+
+@app.route("/sub4pairtradesellalertnotax", methods=["POST"])
+def sub_4_pair_trade_sell_alert_no_tax():
+    request = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    submit_pair_trade_order(
+        tradingview_symbol=tradingViewWebhookMessage["ticker"],
+        capital_to_deploy=0.98,
+        calculate_tax=False,
+        buy_alert=False,
+        account=kucoin_account_names[4],
     )
 
     return {
