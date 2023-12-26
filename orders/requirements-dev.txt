@@ -1,2 +1,4 @@
 chalice==1.29.0
 pytest
+flake8
+
