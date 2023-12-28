@@ -654,25 +654,33 @@ def save_CGT_amount_to_dynamoDB(
     # Calculate the new running total
     if response["Items"]:
         last_item = response["Items"][0]
-        running_total: Decimal = Decimal(
-            last_item.get("RunningTotal", 0)
-        ) + Decimal(profit)
+        running_total = Decimal(last_item.get("RunningTotal", 0)) + Decimal(
+            profit
+        )
     else:
         running_total = Decimal(profit)
+
+    # Round to two decimal places
+    rounded_profit = Decimal(profit).quantize(
+        Decimal("0.01"), rounding=ROUND_DOWN
+    )
+    rounded_running_total = running_total.quantize(
+        Decimal("0.01"), rounding=ROUND_DOWN
+    )
 
     # Prepare the new item with DateKey for the GSI
     new_item = {
         "Asset": asset,
         "TransactionDate": transaction_date,
-        "Profit": Decimal(profit),
-        "RunningTotal": running_total,
+        "Profit": rounded_profit,
+        "RunningTotal": rounded_running_total,
         "DateKey": "ALL",  # Constant value for all items for the GSI
     }
 
     # Add the new item to the table
     table.put_item(Item=new_item)
 
-    print("New item added to DynamoDB table")
+    print("New item added to DynamoDB table", new_item)
     return new_item
 
 
