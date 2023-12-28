@@ -257,7 +257,12 @@ def submit_market_order_custom_percentage(
                 if latest_quote["bid_price"] == Decimal(0)
                 else latest_quote["bid_price"]
             )
-            quantity: Decimal = Decimal(funds_to_deploy) / price
+            quantity: Decimal = (
+                Decimal(funds_to_deploy)
+                * Decimal(
+                    0.97
+                )  # 3% margin of error for latest quote unreliabiity
+            ) / price
 
             order_request = MarketOrderRequest(
                 symbol=alpaca_symbol,
@@ -470,7 +475,12 @@ def submit_market_order_custom_amount(
                 else latest_quote["bid_price"]
             )
 
-            quantity: Decimal = funds_to_deploy / price
+            quantity: Decimal = (
+                Decimal(funds_to_deploy)
+                * Decimal(
+                    0.97
+                )  # 3% margin of error for latest quote unreliabiity
+            ) / price
 
             order_params: OrderRequest = OrderRequest(
                 symbol=alpaca_symbol,
