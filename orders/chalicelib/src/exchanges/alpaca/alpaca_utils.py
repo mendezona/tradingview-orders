@@ -145,6 +145,8 @@ def alpaca_submit_pair_trade_order(
         else tradingview_alpaca_symbols[tradingview_symbol]
     )
 
+    isOutsideNormalTradingHours: bool = is_outside_nasdaq_trading_hours()
+
     # If there is no sell order found for inverse pair symbol,
     # sell all holdings of the inverse pair and save CGT to DynamoDB
     # Assumes there is only one order open at a time
@@ -154,7 +156,15 @@ def alpaca_submit_pair_trade_order(
         )
         == OrderSide.BUY
     ):
-        close_all_holdings_of_asset(alpaca_inverse_symbol, account)
+        if isOutsideNormalTradingHours:
+            asset_balance = get_available_asset_balance(alpaca_inverse_symbol)[
+                "position_qty"
+            ]
+            submit_limit_order_custom_quantity(
+                alpaca_inverse_symbol, asset_balance, buy_side_order=False
+            )
+        else:
+            close_all_holdings_of_asset(alpaca_inverse_symbol, account)
 
         # Wait for up to 10 seconds for holdings to close
         timeout = 10  # timeout in seconds
@@ -184,7 +194,6 @@ def alpaca_submit_pair_trade_order(
                     transaction_date=timestamp,
                 )
 
-    isOutsideNormalTradingHours: bool = is_outside_nasdaq_trading_hours()
     submit_limit_order_custom_percentage(
         alpaca_symbol,
         True,
@@ -885,3 +894,65 @@ def is_outside_nasdaq_trading_hours() -> bool:
     else:
         print("Inside normal trading hours")
         return False  # Within trading hours
+
+
+# Submit a limit order for the custom quantity of a stock
+def submit_limit_order_custom_quantity(
+    alpaca_symbol: str,
+    quantity: float,
+    limit_price: Decimal = None,
+    buy_side_order: bool = True,
+    account: str = alpaca_trading_account_name_live,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+) -> None:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        # Check if the asset is fractionable
+        fractionable = is_asset_fractionable(alpaca_symbol, trading_client)
+
+        # Set the default limit price using the latest quote
+        if limit_price is None:
+            latest_quote = get_latest_quote(alpaca_symbol, account)
+            if buy_side_order:
+                limit_price = Decimal(latest_quote["ask_price"])
+            else:
+                limit_price = Decimal(latest_quote["bid_price"])
+
+        # Set the order side
+        order_side: OrderSide = "buy" if buy_side_order else "sell"
+
+        # Prepare limit order parameters
+        if fractionable:
+            order_request = LimitOrderRequest(
+                symbol=alpaca_symbol,
+                notional=round(Decimal(quantity) * limit_price, 2),
+                side=order_side,
+                time_in_force=time_in_force,
+                limit_price=limit_price,
+            )
+        else:
+            order_request = LimitOrderRequest(
+                symbol=alpaca_symbol,
+                qty=Decimal(quantity).quantize(
+                    Decimal("1"), rounding=ROUND_DOWN
+                ),
+                side=order_side,
+                time_in_force=time_in_force,
+                limit_price=limit_price,
+            )
+
+        # Create and submit the limit order
+        try:
+            order_response = trading_client.submit_order(order_request)
+            print(f"Limit {order_side} order submitted: \n", order_response)
+        except Exception as e:
+            print(f"An error occurred while submitting the order: {e}")
