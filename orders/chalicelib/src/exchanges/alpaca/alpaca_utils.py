@@ -4,6 +4,7 @@ from decimal import ROUND_DOWN, Decimal
 from typing import Any, Dict, Literal, Optional, Union
 
 import boto3
+import pytz
 from alpaca.common.types import RawData
 from alpaca.data import Quote, QuoteSet
 from alpaca.data.historical import StockHistoricalDataClient
@@ -22,6 +23,7 @@ from alpaca.trading.enums import (
 )
 from alpaca.trading.requests import (
     GetOrdersRequest,
+    LimitOrderRequest,
     MarketOrderRequest,
     OrderRequest,
 )
@@ -181,12 +183,117 @@ def alpaca_submit_pair_trade_order(
                     transaction_date=timestamp,
                 )
 
-    submit_market_order_custom_percentage(
+    isOutsideNormalTradingHours: bool = is_outside_nasdaq_trading_hours()
+    submit_limit_order_custom_percentage(
+        alpaca_symbol,
+        True,
+        capital_percentage_to_deploy=capital_to_deploy,
+        account=account,
+    ) if isOutsideNormalTradingHours else submit_market_order_custom_percentage(  # noqa: E501
         alpaca_symbol,
         True,
         capital_percentage_to_deploy=capital_to_deploy,
         account=account,
     )
+
+
+# Submit limit order based on custom percentage of entire portfolio value
+def submit_limit_order_custom_percentage(
+    alpaca_symbol: str,
+    buy_side_order: bool = True,
+    capital_percentage_to_deploy: float = 1.0,
+    account: str = alpaca_trading_account_name_live,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+    limit_price: Decimal = None,
+) -> None:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        account_info: dict[str, Any] | Literal[
+            "Account not found"
+        ] = get_alpaca_account_balance(account_name=account)
+        account_equity: Any | str = account_info["account_equity"]
+        account_cash: Any | str = account_info["account_cash"]
+
+        # Get account balance
+        account_value = Decimal(account_equity)
+        capital_percentage_to_deploy = Decimal(capital_percentage_to_deploy)
+        funds_to_deploy = (
+            account_value * capital_percentage_to_deploy
+        ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+
+        # Check if funds are sufficient
+        if funds_to_deploy <= 0:
+            print("Insufficient funds to deploy")
+            return
+
+        # If funds are less that funds to deploy, deploy all cash
+        # Can be useful if funds are still settling
+        if funds_to_deploy > Decimal(account_cash):
+            funds_to_deploy = Decimal(account_cash)
+
+        if limit_price is None:
+            latest_quote = get_latest_quote(alpaca_symbol, account)
+            if buy_side_order:
+                limit_price = Decimal(latest_quote["ask_price"])
+            else:
+                limit_price = Decimal(latest_quote["bid_price"])
+
+        # Set the order side
+        order_side: OrderSide = "buy" if buy_side_order else "sell"
+
+        # Check if asset is fractionable
+        fractionable: bool = is_asset_fractionable(
+            alpaca_symbol, trading_client
+        )
+
+        # Prepare order parameters
+        if fractionable:
+            order_request = LimitOrderRequest(
+                symbol=alpaca_symbol,
+                notional=round(funds_to_deploy, 2),
+                side=order_side,
+                time_in_force=time_in_force,
+                limit_price=limit_price,
+            )
+        else:
+            # For non-fractionable assets, calculate quantity using latest
+            # quote
+            latest_quote = get_latest_quote(alpaca_symbol, account)
+            price: Decimal = Decimal(
+                latest_quote["ask_price"]
+                if latest_quote["bid_price"] == Decimal(0)
+                else latest_quote["bid_price"]
+            )
+            quantity: Decimal = (
+                Decimal(funds_to_deploy)
+                * Decimal(
+                    0.97
+                )  # 3% margin of error for latest quote unreliabiity
+            ) / price
+
+            order_request = LimitOrderRequest(
+                symbol=alpaca_symbol,
+                qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
+                side=order_side,
+                time_in_force=time_in_force,
+                limit_price=limit_price,
+            )
+
+        # Create and submit the limit order
+        try:
+            order_response = trading_client.submit_order(order_request)
+            print(f"Limit {order_side} order submitted: \n", order_response)
+        except Exception as e:
+            print(f"An error occurred while submitting the order: {e}")
 
 
 # Submit market order based on custom percentage of entire portfolio value
@@ -756,3 +863,24 @@ def are_holdings_closed(
     else:
         print("No credentials available.")
         return False  # Cannot check without credentials
+
+
+def is_outside_nasdaq_trading_hours() -> bool:
+    # Define NASDAQ trading hours (9:30 AM to 4:00 PM ET)
+    nasdaq_open_time = time(9, 30, 0)
+    nasdaq_close_time = time(16, 0, 0)
+
+    # Get the current time in ET
+    eastern = pytz.timezone("US/Eastern")
+    current_time_et = datetime.now(eastern).time()
+
+    # Check if current time is outside trading hours
+    if (
+        current_time_et < nasdaq_open_time
+        or current_time_et > nasdaq_close_time
+    ):
+        print("Outside normal trading hours")
+        return True  # Outside trading hours
+    else:
+        print("Inside normal trading hours")
+        return False  # Within trading hours
