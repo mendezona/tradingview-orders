@@ -1,4 +1,6 @@
-from datetime import datetime, time
+import time
+from datetime import datetime
+from datetime import time as datetime_module_time
 from decimal import ROUND_DOWN, Decimal
 from typing import Any, Dict, Literal, Optional, Union
 
@@ -866,8 +868,8 @@ def are_holdings_closed(
 
 def is_outside_nasdaq_trading_hours() -> bool:
     # Define NASDAQ trading hours (9:30 AM to 4:00 PM ET)
-    nasdaq_open_time = time(9, 30, 0)
-    nasdaq_close_time = time(16, 0, 0)
+    nasdaq_open_time = datetime_module_time(9, 30, 0)
+    nasdaq_close_time = datetime_module_time(16, 0, 0)
 
     # Get the current time in ET
     eastern = pytz.timezone("US/Eastern")
