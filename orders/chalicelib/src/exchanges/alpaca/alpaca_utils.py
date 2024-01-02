@@ -161,7 +161,10 @@ def alpaca_submit_pair_trade_order(
                 "position_qty"
             ]
             submit_limit_order_custom_quantity(
-                alpaca_inverse_symbol, asset_balance, buy_side_order=False
+                alpaca_inverse_symbol,
+                asset_balance,
+                buy_side_order=False,
+                setSlippagePercentage=0.03,
             )
         else:
             close_all_holdings_of_asset(alpaca_inverse_symbol, account)
@@ -199,6 +202,7 @@ def alpaca_submit_pair_trade_order(
         True,
         capital_percentage_to_deploy=capital_to_deploy,
         account=account,
+        setSlippagePercentage=0.03,
     ) if isOutsideNormalTradingHours else submit_market_order_custom_percentage(  # noqa: E501
         alpaca_symbol,
         True,
@@ -215,6 +219,7 @@ def submit_limit_order_custom_percentage(
     account: str = alpaca_trading_account_name_live,
     time_in_force: TimeInForce = TimeInForce.DAY,
     limit_price: Decimal = None,
+    setSlippagePercentage: Decimal = 0,
 ) -> None:
     credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
         account
@@ -253,9 +258,13 @@ def submit_limit_order_custom_percentage(
         if limit_price is None:
             latest_quote = get_latest_quote(alpaca_symbol, account)
             if buy_side_order:
-                limit_price = Decimal(latest_quote["ask_price"])
+                limit_price = Decimal(latest_quote["ask_price"]) + (
+                    Decimal(latest_quote["ask_price"]) * setSlippagePercentage
+                )
             else:
-                limit_price = Decimal(latest_quote["bid_price"])
+                limit_price = Decimal(latest_quote["bid_price"]) + (
+                    Decimal(latest_quote["bid_price"]) * setSlippagePercentage
+                )
 
         # Set the order side
         order_side: OrderSide = "buy" if buy_side_order else "sell"
@@ -904,6 +913,7 @@ def submit_limit_order_custom_quantity(
     buy_side_order: bool = True,
     account: str = alpaca_trading_account_name_live,
     time_in_force: TimeInForce = TimeInForce.DAY,
+    setSlippagePercentage: Decimal = 0,
 ) -> None:
     credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
         account
@@ -923,9 +933,13 @@ def submit_limit_order_custom_quantity(
         if limit_price is None:
             latest_quote = get_latest_quote(alpaca_symbol, account)
             if buy_side_order:
-                limit_price = Decimal(latest_quote["ask_price"])
+                limit_price = Decimal(latest_quote["ask_price"]) + (
+                    Decimal(latest_quote["ask_price"]) * setSlippagePercentage
+                )
             else:
-                limit_price = Decimal(latest_quote["bid_price"])
+                limit_price = Decimal(latest_quote["bid_price"]) + (
+                    Decimal(latest_quote["bid_price"]) * setSlippagePercentage
+                )
 
         # Set the order side
         order_side: OrderSide = "buy" if buy_side_order else "sell"
