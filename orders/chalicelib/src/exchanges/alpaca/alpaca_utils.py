@@ -1,4 +1,6 @@
-from datetime import datetime, time
+import time
+from datetime import datetime
+from datetime import time as datetime_module_time
 from decimal import ROUND_DOWN, Decimal
 from typing import Any, Dict, Literal, Optional, Union
 
@@ -143,6 +145,8 @@ def alpaca_submit_pair_trade_order(
         else tradingview_alpaca_symbols[tradingview_symbol]
     )
 
+    isOutsideNormalTradingHours: bool = is_outside_nasdaq_trading_hours()
+
     # If there is no sell order found for inverse pair symbol,
     # sell all holdings of the inverse pair and save CGT to DynamoDB
     # Assumes there is only one order open at a time
@@ -152,7 +156,18 @@ def alpaca_submit_pair_trade_order(
         )
         == OrderSide.BUY
     ):
-        close_all_holdings_of_asset(alpaca_inverse_symbol, account)
+        if isOutsideNormalTradingHours:
+            asset_balance = get_available_asset_balance(alpaca_inverse_symbol)[
+                "position_qty"
+            ]
+            submit_limit_order_custom_quantity(
+                alpaca_inverse_symbol,
+                asset_balance,
+                buy_side_order=False,
+                setSlippagePercentage=0.03,
+            )
+        else:
+            close_all_holdings_of_asset(alpaca_inverse_symbol, account)
 
         # Wait for up to 10 seconds for holdings to close
         timeout = 10  # timeout in seconds
@@ -182,12 +197,12 @@ def alpaca_submit_pair_trade_order(
                     transaction_date=timestamp,
                 )
 
-    isOutsideNormalTradingHours: bool = is_outside_nasdaq_trading_hours()
     submit_limit_order_custom_percentage(
         alpaca_symbol,
         True,
         capital_percentage_to_deploy=capital_to_deploy,
         account=account,
+        setSlippagePercentage=0.03,
     ) if isOutsideNormalTradingHours else submit_market_order_custom_percentage(  # noqa: E501
         alpaca_symbol,
         True,
@@ -204,6 +219,7 @@ def submit_limit_order_custom_percentage(
     account: str = alpaca_trading_account_name_live,
     time_in_force: TimeInForce = TimeInForce.DAY,
     limit_price: Decimal = None,
+    setSlippagePercentage: Decimal = 0,
 ) -> None:
     credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
         account
@@ -242,9 +258,13 @@ def submit_limit_order_custom_percentage(
         if limit_price is None:
             latest_quote = get_latest_quote(alpaca_symbol, account)
             if buy_side_order:
-                limit_price = Decimal(latest_quote["ask_price"])
+                limit_price = Decimal(latest_quote["ask_price"]) + (
+                    Decimal(latest_quote["ask_price"]) * setSlippagePercentage
+                )
             else:
-                limit_price = Decimal(latest_quote["bid_price"])
+                limit_price = Decimal(latest_quote["bid_price"]) + (
+                    Decimal(latest_quote["bid_price"]) * setSlippagePercentage
+                )
 
         # Set the order side
         order_side: OrderSide = "buy" if buy_side_order else "sell"
@@ -866,8 +886,8 @@ def are_holdings_closed(
 
 def is_outside_nasdaq_trading_hours() -> bool:
     # Define NASDAQ trading hours (9:30 AM to 4:00 PM ET)
-    nasdaq_open_time = time(9, 30, 0)
-    nasdaq_close_time = time(16, 0, 0)
+    nasdaq_open_time = datetime_module_time(9, 30, 0)
+    nasdaq_close_time = datetime_module_time(16, 0, 0)
 
     # Get the current time in ET
     eastern = pytz.timezone("US/Eastern")
@@ -883,3 +903,70 @@ def is_outside_nasdaq_trading_hours() -> bool:
     else:
         print("Inside normal trading hours")
         return False  # Within trading hours
+
+
+# Submit a limit order for the custom quantity of a stock
+def submit_limit_order_custom_quantity(
+    alpaca_symbol: str,
+    quantity: float,
+    limit_price: Decimal = None,
+    buy_side_order: bool = True,
+    account: str = alpaca_trading_account_name_live,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+    setSlippagePercentage: Decimal = 0,
+) -> None:
+    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+        account
+    )
+
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        # Check if the asset is fractionable
+        fractionable = is_asset_fractionable(alpaca_symbol, trading_client)
+
+        # Set the default limit price using the latest quote
+        if limit_price is None:
+            latest_quote = get_latest_quote(alpaca_symbol, account)
+            if buy_side_order:
+                limit_price = Decimal(latest_quote["ask_price"]) + (
+                    Decimal(latest_quote["ask_price"]) * setSlippagePercentage
+                )
+            else:
+                limit_price = Decimal(latest_quote["bid_price"]) + (
+                    Decimal(latest_quote["bid_price"]) * setSlippagePercentage
+                )
+
+        # Set the order side
+        order_side: OrderSide = "buy" if buy_side_order else "sell"
+
+        # Prepare limit order parameters
+        if fractionable:
+            order_request = LimitOrderRequest(
+                symbol=alpaca_symbol,
+                notional=round(Decimal(quantity) * limit_price, 2),
+                side=order_side,
+                time_in_force=time_in_force,
+                limit_price=limit_price,
+            )
+        else:
+            order_request = LimitOrderRequest(
+                symbol=alpaca_symbol,
+                qty=Decimal(quantity).quantize(
+                    Decimal("1"), rounding=ROUND_DOWN
+                ),
+                side=order_side,
+                time_in_force=time_in_force,
+                limit_price=limit_price,
+            )
+
+        # Create and submit the limit order
+        try:
+            order_response = trading_client.submit_order(order_request)
+            print(f"Limit {order_side} order submitted: \n", order_response)
+        except Exception as e:
+            print(f"An error occurred while submitting the order: {e}")
