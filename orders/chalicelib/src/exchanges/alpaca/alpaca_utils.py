@@ -85,12 +85,16 @@ def get_alpaca_account_balance(
 
     if account:
         trading_client = (
-            TradingClient(api_key=account["key"], secret_key=account["secret"])
+            TradingClient(
+                api_key=account["key"],
+                secret_key=account["secret"],
+                paper=account["paper"],
+            )
             if not development_mode_toggle
             else TradingClient(
                 api_key=account["key"],
                 secret_key=account["secret"],
-                paper=True,
+                paper=account["paper"],
             )
         )
 
