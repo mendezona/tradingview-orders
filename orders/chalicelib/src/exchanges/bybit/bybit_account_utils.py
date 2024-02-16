@@ -1,3 +1,5 @@
+from datetime import timedelta
+from requests.structures import CaseInsensitiveDict
 from typing import Any
 from chalicelib.src.constants import development_mode
 from chalicelib.src.exchanges.bybit.bybit_constants import (
@@ -13,7 +15,7 @@ def bybit_get_coin_balance(
     api_key: str = bybit_key,
     api_secret: str = bybit_secret,
     testnet: bool = development_mode,
-) -> Any | str:
+) -> str:
     """
     Retrieves the account balance for a specific coin from Bybit.
 
@@ -24,15 +26,20 @@ def bybit_get_coin_balance(
     - testnet: Boolean indicating whether to use the testnet (default False).
 
     Returns:
-    - The account balance for the specified coin or an error message.
+    - The account balance for the specified coin as a string
+    or an error message as a string.
     """
     # Initialize the HTTP client with Bybit's endpoint and your API credentials
-    session = HTTP(api_key=api_key, api_secret=api_secret, testnet=testnet)
+    session: HTTP = HTTP(
+        api_key=api_key, api_secret=api_secret, testnet=testnet
+    )
 
     # Fetch the wallet balance for the specified coin
-    response = session.get_wallet_balance(
-        accountType=bybit_account_type, coin=coin
-    )
+    response: (
+        tuple[Any, timedelta, CaseInsensitiveDict[str]]
+        | tuple[Any, timedelta]
+        | Any
+    ) = session.get_wallet_balance(accountType=bybit_account_type, coin=coin)
     print("bybit_get_coin_balance response: ", response)
 
     # Check if the request was successful

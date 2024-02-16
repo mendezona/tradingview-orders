@@ -1,5 +1,5 @@
 # Mock response for a successful balance retrieval
-mock_coin_balance_response = {
+mock_coin_balance_response: dict[str, any] = {
     "retCode": 0,
     "retMsg": "OK",
     "result": {
