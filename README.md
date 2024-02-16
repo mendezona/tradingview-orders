@@ -15,19 +15,21 @@ Dependencies:
 - AWS Account setup with AWS Lambda
 - AWS DynamoDB instances to save data to
 - Kucoin Python SDK
+- ByBit Python SDK
 
 How to start project:
 
 - Check python 3.7.3 is installed
 - python3 --version
 - Setup virtual environment in project folder
-- cd orders
-- python3 -m venv venv37
-- . venv37/bin/activate
+- python3 -m venv myenvtradingvieworders
+- . myenvtradingvieworders/bin/activate
 - Install AWS Chalice - https://github.com/aws/chalice
 - python3 -m pip install chalice
 - Install package dependencies
+- cd orders
 - pip3 install -r requirements.txt
+- pip3 install -r requirements-dev.txt
 - Run project locally
 - chalice local
 

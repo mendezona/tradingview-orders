@@ -1,4 +1,5 @@
-requests
-kucoin-python
-boto3
 alpaca-py
+boto3
+kucoin-python
+pybit
+requests
