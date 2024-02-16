@@ -8,6 +8,9 @@ from chalicelib.src.exchanges.alpaca.alpaca_utils import (
     alpaca_submit_pair_trade_order,
     test_alpaca_function,
 )
+from chalicelib.src.exchanges.bybit.bybit_account_utils import (
+    bybit_get_coin_balance,
+)
 from chalicelib.src.exchanges.kucoin.kucoin_constants import (
     kucoin_account_names,
     tax_pair,
@@ -235,9 +238,15 @@ def pair_trade_buy_alert_no_tax():
         "tradingViewWebhookMessage": tradingViewWebhookMessage,
     }
 
+"""
+Bybit Routes
+"""
 
 @app.route("/pairtradesellalertnotax", methods=["POST"])
 def pair_trade_sell_alert_no_tax():
+
+@app.route("/bybittestroute", methods=["POST"])
+def bybit_test_route():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
@@ -246,11 +255,16 @@ def pair_trade_sell_alert_no_tax():
         capital_to_deploy=0.98,
         calculate_tax=False,
         buy_alert=False,
+    response = bybit_get_coin_balance(
+        coin=tradingViewWebhookMessage["ticker"],
     )
+
+    print("response", response)
 
     return {
         "message": "alert received",
         "tradingViewWebhookMessage": tradingViewWebhookMessage,
+        "response": response,
     }
 
 
