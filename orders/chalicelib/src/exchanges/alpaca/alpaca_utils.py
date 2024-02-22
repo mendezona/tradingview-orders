@@ -40,6 +40,7 @@ from chalicelib.src.exchanges.alpaca.alpaca_constants import (
     alpaca_accounts,
     alpaca_trading_account_name_live,
     alpaca_trading_account_name_paper,
+    alpaca_tolerated_aftermarket_slippage,
     tradingview_alpaca_inverse_pairs,
     tradingview_alpaca_symbols,
 )
@@ -164,7 +165,7 @@ def alpaca_submit_pair_trade_order(
                 alpaca_inverse_symbol,
                 asset_balance,
                 buy_side_order=False,
-                setSlippagePercentage=0.03,
+                setSlippagePercentage=alpaca_tolerated_aftermarket_slippage,
             )
         else:
             close_all_holdings_of_asset(alpaca_inverse_symbol, account)
@@ -197,17 +198,21 @@ def alpaca_submit_pair_trade_order(
                     transaction_date=timestamp,
                 )
 
-    submit_limit_order_custom_percentage(
-        alpaca_symbol,
-        True,
-        capital_percentage_to_deploy=capital_to_deploy,
-        account=account,
-        setSlippagePercentage=0.03,
-    ) if isOutsideNormalTradingHours else submit_market_order_custom_percentage(  # noqa: E501
-        alpaca_symbol,
-        True,
-        capital_percentage_to_deploy=capital_to_deploy,
-        account=account,
+    (
+        submit_limit_order_custom_percentage(
+            alpaca_symbol,
+            True,
+            capital_percentage_to_deploy=capital_to_deploy,
+            account=account,
+            setSlippagePercentage=alpaca_tolerated_aftermarket_slippage,
+        )
+        if isOutsideNormalTradingHours
+        else submit_market_order_custom_percentage(  # noqa: E501
+            alpaca_symbol,
+            True,
+            capital_percentage_to_deploy=capital_to_deploy,
+            account=account,
+        )
     )
 
 
@@ -232,9 +237,9 @@ def submit_limit_order_custom_percentage(
             paper=credentials["paper"],
         )
 
-        account_info: dict[str, Any] | Literal[
-            "Account not found"
-        ] = get_alpaca_account_balance(account_name=account)
+        account_info: dict[str, Any] | Literal["Account not found"] = (
+            get_alpaca_account_balance(account_name=account)
+        )
         account_equity: Any | str = account_info["account_equity"]
         account_cash: Any | str = account_info["account_cash"]
 
@@ -334,9 +339,9 @@ def submit_market_order_custom_percentage(
             paper=credentials["paper"],
         )
 
-        account_info: dict[str, Any] | Literal[
-            "Account not found"
-        ] = get_alpaca_account_balance(account_name=account)
+        account_info: dict[str, Any] | Literal["Account not found"] = (
+            get_alpaca_account_balance(account_name=account)
+        )
         account_equity: Any | str = account_info["account_equity"]
         account_cash: Any | str = account_info["account_cash"]
 
@@ -447,9 +452,9 @@ def get_latest_quote(
             request_params_latest: StockLatestQuoteRequest = (
                 StockLatestQuoteRequest(symbol_or_symbols=[symbol])
             )
-            latest_quote: Union[
-                Dict[str, Quote], RawData
-            ] = client.get_stock_latest_quote(request_params_latest)
+            latest_quote: Union[Dict[str, Quote], RawData] = (
+                client.get_stock_latest_quote(request_params_latest)
+            )
             symbol_quote_latest: Quote = latest_quote[symbol]
             if (
                 symbol_quote_latest.bid_price > 0
