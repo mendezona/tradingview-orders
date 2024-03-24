@@ -38,10 +38,7 @@ from chalicelib.src.exchanges.alpaca.alpaca_types import (
 def test_alpaca_get_credentials(
     account_name, development_mode_toggle, expected
 ):
-    # Call the function with the mocked data
     result: AlpacaAccountCredentials = alpaca_get_credentials(
         account_name, development_mode_toggle
     )
-
-    # Check if the function returns the expected result
     assert result == expected
