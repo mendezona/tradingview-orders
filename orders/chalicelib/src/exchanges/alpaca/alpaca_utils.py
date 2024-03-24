@@ -6,7 +6,8 @@ from typing import Any, Dict, Literal, Optional, Union
 
 import boto3
 import pytz
-from alpaca.common.types import RawData
+
+# from alpaca.common.types import RawData
 from alpaca.data import Quote, QuoteSet
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import (
@@ -37,15 +38,16 @@ from chalicelib.src.constants import (
     tax_rate,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_constants import (
-    alpaca_accounts,
     alpaca_trading_account_name_live,
-    alpaca_trading_account_name_paper,
     alpaca_tolerated_aftermarket_slippage,
     tradingview_alpaca_inverse_pairs,
     tradingview_alpaca_symbols,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
+)
+from chalicelib.src.exchanges.alpaca.alpaca_account_utils import (
+    alpaca_get_credentials,
 )
 
 
@@ -54,33 +56,12 @@ def test_alpaca_function():
     get_latest_quote("TSLT")
 
 
-# Get Alpaca Credentials (usually Live or Paper)
-def get_alpaca_credentials(
-    account_name: str, development_mode_toggle: bool = development_mode
-) -> Optional[AlpacaAccountCredentials]:
-    account_info: dict[AlpacaAccountCredentials] = (
-        alpaca_accounts.get(account_name)
-        if not development_mode_toggle
-        else alpaca_accounts[alpaca_trading_account_name_paper]
-    )
-
-    if account_info:
-        return AlpacaAccountCredentials(
-            endpoint=account_info["endpoint"],
-            key=account_info["key"],
-            secret=account_info["secret"],
-            paper=account_info["paper"],
-        )
-    else:
-        return None
-
-
 # Get current account balance
 def get_alpaca_account_balance(
     account_name: str = alpaca_trading_account_name_live,
     development_mode_toggle: bool = development_mode,
 ) -> dict[str, Any] | Literal["Account not found"]:
-    account: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    account: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account_name
     )
 
@@ -230,7 +211,7 @@ def submit_limit_order_custom_percentage(
     limit_price: Decimal = None,
     setSlippagePercentage: Decimal = 0,
 ) -> None:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -332,7 +313,7 @@ def submit_market_order_custom_percentage(
     account: str = alpaca_trading_account_name_live,
     time_in_force: TimeInForce = TimeInForce.DAY,
 ) -> None:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -419,7 +400,7 @@ def is_asset_fractionable(
     symbol: str,
     account: str = alpaca_trading_account_name_live,
 ) -> bool:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -442,7 +423,7 @@ def is_asset_fractionable(
 def get_latest_quote(
     symbol: str, account: str = alpaca_trading_account_name_live
 ) -> dict:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -456,9 +437,7 @@ def get_latest_quote(
             request_params_latest: StockLatestQuoteRequest = (
                 StockLatestQuoteRequest(symbol_or_symbols=[symbol])
             )
-            latest_quote: Union[Dict[str, Quote], RawData] = (
-                client.get_stock_latest_quote(request_params_latest)
-            )
+            latest_quote = client.get_stock_latest_quote(request_params_latest)
             symbol_quote_latest: Quote = latest_quote[symbol]
             if (
                 symbol_quote_latest.bid_price > 0
@@ -478,9 +457,7 @@ def get_latest_quote(
             request_params_quotes: StockQuotesRequest = StockQuotesRequest(
                 symbol_or_symbols=[symbol], limit=1
             )
-            quotes: Union[QuoteSet, RawData] = client.get_stock_quotes(
-                request_params_quotes
-            )
+            quotes = client.get_stock_quotes(request_params_quotes)
             quote = quotes[symbol][0]
             if quote.bid_price and quote.ask_price:
                 latest_quote = {
@@ -528,7 +505,7 @@ def get_latest_quote(
 def get_available_asset_balance(
     symbol: str, account: str = alpaca_trading_account_name_live
 ) -> Decimal:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -566,7 +543,7 @@ def submit_market_order_custom_amount(
     account: str = alpaca_trading_account_name_live,
     time_in_force: TimeInForce = TimeInForce.DAY,
 ) -> None:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -640,7 +617,7 @@ def check_last_filled_order_type(
     symbol: str,
     account: str = alpaca_trading_account_name_live,
 ) -> str:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -688,7 +665,7 @@ def close_all_holdings_of_asset(
     symbol: str,
     account: str = alpaca_trading_account_name_live,
 ) -> None:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -712,7 +689,7 @@ def calculate_profit_loss(
     symbol: str,
     account: str = alpaca_trading_account_name_live,
 ) -> Decimal:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -858,7 +835,7 @@ def are_holdings_closed(
     symbol: str,
     account: str = alpaca_trading_account_name_live,
 ) -> bool:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
@@ -924,7 +901,7 @@ def submit_limit_order_custom_quantity(
     time_in_force: TimeInForce = TimeInForce.DAY,
     setSlippagePercentage: Decimal = 0,
 ) -> None:
-    credentials: AlpacaAccountCredentials | None = get_alpaca_credentials(
+    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
     )
 
