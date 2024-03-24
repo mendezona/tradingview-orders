@@ -1,11 +1,11 @@
-from chalicelib.src.exchanges.alpaca.alpaca_types import (
-    AlpacaAccountCredentials,
-)
 from chalicelib.src.exchanges.alpaca.alpaca_constants import (
+    alpaca_paper_trading_endpoint,
     alpaca_trading_account_name_live,
     alpaca_trading_account_name_paper,
     alpaca_trading_endpoint,
-    alpaca_paper_trading_endpoint,
+)
+from chalicelib.src.exchanges.alpaca.alpaca_types import (
+    AlpacaAccountCredentials,
 )
 
 # Mock response for bybit_get_credentials
