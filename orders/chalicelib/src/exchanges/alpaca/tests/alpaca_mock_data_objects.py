@@ -1,13 +1,25 @@
-from unittest.mock import MagicMock
-
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
 )
-
-mock_account_details = MagicMock()
-mock_account_details.equity = 10000
-mock_account_details.cash = 5000
-mock_credentials = AlpacaAccountCredentials(
-    key="test_key", secret="test_secret", paper=True
+from chalicelib.src.exchanges.alpaca.alpaca_constants import (
+    alpaca_trading_account_name_live,
+    alpaca_trading_account_name_paper,
+    alpaca_trading_endpoint,
+    alpaca_paper_trading_endpoint,
 )
-mock_account_info: dict[str, str] = {"account_cash": "10000"}
+
+# Mock response for bybit_get_credentials
+mock_alpaca_accounts: dict[str, dict[AlpacaAccountCredentials]] = {
+    alpaca_trading_account_name_live: {
+        "endpoint": alpaca_trading_endpoint,
+        "key": "live_key",
+        "secret": "live_secret",
+        "paper": False,
+    },
+    alpaca_trading_account_name_paper: {
+        "endpoint": alpaca_paper_trading_endpoint,
+        "key": "paper_key",
+        "secret": "paper_secret",
+        "paper": False,
+    },
+}
