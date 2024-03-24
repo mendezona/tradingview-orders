@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
 )
@@ -31,11 +32,11 @@ alpaca_accounts: dict[str, dict[AlpacaAccountCredentials]] = {
 }
 
 # Pairs
-tradingview_alpaca_symbols: dict[str, str] = {
+alpaca_tradingview__symbols: dict[str, str] = {
     "<insert>": "<insert>",
 }
 
 # Inverse pairs
-tradingview_alpaca_inverse_pairs: dict[str, str] = {
+alpaca_tradingview_inverse_pairs: dict[str, str] = {
     "<insert>": "<insert>",
 }

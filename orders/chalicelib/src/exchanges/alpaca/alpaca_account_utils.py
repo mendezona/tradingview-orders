@@ -1,9 +1,9 @@
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Literal
 
 from alpaca.common import RawData
 from alpaca.trading.client import TradingClient
-from alpaca.trading.models import TradeAccount
+from alpaca.trading.models import Position, TradeAccount
 from chalicelib.src.aws.aws_constants import dynamodb_table_names_instance
 from chalicelib.src.aws.aws_utils import get_last_running_total
 from chalicelib.src.constants import development_mode
@@ -14,6 +14,8 @@ from chalicelib.src.exchanges.alpaca.alpaca_constants import (
 )
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
+    AlpacaAvailableAssetBalance,
+    AlpacaGetAccountBalance,
 )
 
 
@@ -51,10 +53,10 @@ def alpaca_get_credentials(
         )
 
 
-def get_alpaca_account_balance(
+def alpaca_get_account_balance(
     account_name: str = alpaca_trading_account_name_live,
     development_mode_toggle: bool = development_mode,
-) -> dict[str, Any] | Literal["Account not found"]:
+) -> AlpacaGetAccountBalance | Literal["Account not found"]:
     """
     Retrieves the account balance
 
@@ -67,10 +69,9 @@ def get_alpaca_account_balance(
     and paper, to pass to the Alpaca SDK API
     """
 
-    account_credentials: AlpacaAccountCredentials | None = (
-        alpaca_get_credentials(account_name)
+    account_credentials: AlpacaAccountCredentials = alpaca_get_credentials(
+        account_name
     )
-
     if account_credentials:
         trading_client: TradingClient = (
             TradingClient(
