@@ -118,3 +118,47 @@ def alpaca_get_account_balance(
 
     print("Account balance not found")
     return "Account balance not found"
+
+
+def alpaca_get_available_asset_balance(
+    symbol: str, account_name: str = alpaca_trading_account_name_live
+) -> AlpacaAvailableAssetBalance | None:
+    """
+    Get the amount of assets you own available to trade for a single symbol
+
+    Parameters:
+    - symbol: The symbol to search for the available asset balance
+    - account_name: The name of the account to search with
+
+    Returns:
+    - A Decimal with the num
+    """
+
+    credentials: AlpacaAccountCredentials = alpaca_get_credentials(
+        account_name
+    )
+    if credentials:
+        trading_client = TradingClient(
+            api_key=credentials["key"],
+            secret_key=credentials["secret"],
+            paper=credentials["paper"],
+        )
+
+        try:
+            position: Position | RawData = trading_client.get_open_position(
+                symbol
+            )
+
+            print(f"Position for {symbol}: {position}")
+            print(f"Quantity of {symbol}: {position.qty}")
+            print(f"Market value for {symbol}: {position.market_value}")
+
+            return {
+                "position": position,
+                "position_qty": position.qty,
+                "position_market_value": position.market_value,
+            }
+
+        except Exception as e:
+            print(f"Error getting position for {symbol}: {e}")
+            return None
