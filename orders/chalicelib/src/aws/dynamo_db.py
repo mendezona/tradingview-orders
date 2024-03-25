@@ -5,10 +5,6 @@ from boto3.dynamodb.conditions import Attr, Key
 
 dynamodb = boto3.resource("dynamodb")
 
-"""
-Collection of useful developer functions to create and test DynamoDb
-"""
-
 
 # Developer function, create DynamoDB instance
 def create_new_dynamodb_instance(table_name: str):

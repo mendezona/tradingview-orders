@@ -72,7 +72,7 @@ def test_get_available_balance(mocker, capsys):
 def test_get_symbol_increments(mocker):
     # Mock the Market class and its get_symbol_list_v2 method
     mocker.patch(
-        "chalicelib.src.exchanges.kucoin.kucoin_utils.Market.get_symbol_list_v2",  # noqa: E501
+        "chalicelib.src.exchanges.kucoin.kucoin_utils.Market.get_symbol_list_v2",  # noqa
         return_value=mock_symbol_list_response,
     )
 
