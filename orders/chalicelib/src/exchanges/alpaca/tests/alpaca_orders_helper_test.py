@@ -73,7 +73,7 @@ def mock_orders():
 
 @patch("alpaca.trading.client.TradingClient")
 @patch(
-    "chalicelib.src.exchanges.alpaca.alpaca_account_utils.alpaca_get_credentials"
+    "chalicelib.src.exchanges.alpaca.alpaca_orders_helper.alpaca_get_credentials"  # noqa: E501
 )
 def alpaca_calculate_profit_loss_test_profit_scenario(
     mock_get_credentials, mock_TradingClient, mock_credentials, mock_orders
@@ -106,7 +106,7 @@ def alpaca_calculate_profit_loss_test_profit_scenario(
 
 @patch("alpaca.trading.client.TradingClient")
 @patch(
-    "chalicelib.src.exchanges.alpaca.alpaca_account_utils.alpaca_get_credentials"
+    "chalicelib.src.exchanges.alpaca.alpaca_orders_helper.alpaca_get_credentials"  # noqa: E501
 )
 def alpaca_calculate_profit_loss_test_loss_scenario(
     mock_get_credentials, mock_TradingClient, mock_credentials, mock_orders
@@ -125,7 +125,7 @@ def alpaca_calculate_profit_loss_test_loss_scenario(
 
 @patch("alpaca.trading.client.TradingClient")
 @patch(
-    "chalicelib.src.exchanges.alpaca.alpaca_account_utils.alpaca_get_credentials"
+    "chalicelib.src.exchanges.alpaca.alpaca_orders_helper.alpaca_get_credentials"  # noqa: E501
 )
 def alpaca_calculate_profit_loss_test_no_sell_order_found(
     mock_get_credentials, mock_TradingClient, mock_credentials
@@ -144,12 +144,15 @@ def alpaca_calculate_profit_loss_test_no_sell_order_found(
 
 @patch("alpaca.trading.client.TradingClient")
 @patch(
-    "chalicelib.src.exchanges.alpaca.alpaca_account_utils.alpaca_get_credentials"
+    "chalicelib.src.exchanges.alpaca.alpaca_orders_helper.alpaca_get_credentials"  # noqa: E501
 )
 def alpaca_calculate_profit_loss_test_not_enough_buy_orders(
     mock_get_credentials, mock_TradingClient, mock_credentials
 ):
-    """Test case for not having enough buy orders to match the sell quantity."""
+    """
+    Test case for not having enough buy orders to match the sell
+    quantity.
+    """
     mock_get_credentials.return_value = mock_credentials
     # Return one sell order and not enough buy quantity
     mock_orders = [

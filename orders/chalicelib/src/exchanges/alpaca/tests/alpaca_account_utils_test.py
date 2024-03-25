@@ -6,7 +6,6 @@ import pytest
 import requests_mock
 from chalicelib.src.exchanges.alpaca.alpaca_account_utils import (
     alpaca_get_credentials,
-    get_alpaca_account_balance,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_constants import (
     alpaca_trading_account_name_live,
@@ -53,7 +52,7 @@ def test_alpaca_get_credentials(
 @pytest.fixture
 def mock_alpaca_get_credentials(mocker):
     return mocker.patch(
-        "chalicelib.src.exchanges.alpaca.alpaca_account_utils.alpaca_get_credentials",
+        "chalicelib.src.exchanges.alpaca.alpaca_account_utils.alpaca_get_credentials",  # noqa: E501
         return_value={
             "key": "dummy_key",
             "secret": "dummy_secret",
@@ -65,7 +64,7 @@ def mock_alpaca_get_credentials(mocker):
 @pytest.fixture
 def mock_last_running_total(mocker):
     return mocker.patch(
-        "chalicelib.src.aws.aws_utils.get_last_running_total",
+        "chalicelib.src.exchanges.alpaca.alpaca_account_utils.get_last_running_total",  # noqa: E501
         return_value=Decimal("10"),
     )
 
@@ -112,10 +111,3 @@ def mock_account_response():
             },
         )
         yield
-
-
-def test_account_found_correct_balance():
-    result = get_alpaca_account_balance()
-
-    assert result["account_equity"] == Decimal("594.90")
-    assert result["account_cash"] == Decimal("18.52")

@@ -22,3 +22,10 @@ class AlpacaAvailableAssetBalance(TypedDict):
     position: str
     position_qty: float
     position_market_value: float
+
+
+class AlpacaGetLatestQuote(TypedDict):
+    ask_price: Decimal
+    bid_price: Decimal
+    ask_size: float
+    bid_size: float
