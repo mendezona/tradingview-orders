@@ -1,8 +1,4 @@
-from decimal import Decimal
 from typing import TypedDict
-
-from alpaca.common import RawData
-from alpaca.trading.models import TradeAccount
 
 
 class AlpacaAccountCredentials(TypedDict):
@@ -12,20 +8,17 @@ class AlpacaAccountCredentials(TypedDict):
     paper: bool
 
 
-class AlpacaGetAccountBalance(TypedDict):
-    account: TradeAccount | RawData
-    account_equity: Decimal
-    account_cash: Decimal
+class MockAsset:
+    def __init__(self, fractionable):
+        self.fractionable = fractionable
 
 
-class AlpacaAvailableAssetBalance(TypedDict):
-    position: str
-    position_qty: float
-    position_market_value: float
+class MockTradingClient:
+    def __init__(self, *args, **kwargs):
+        pass
 
+    def get_orders(self, filters):
+        return []
 
-class AlpacaGetLatestQuote(TypedDict):
-    ask_price: Decimal
-    bid_price: Decimal
-    ask_size: float
-    bid_size: float
+    def close_position(self, symbol):
+        pass

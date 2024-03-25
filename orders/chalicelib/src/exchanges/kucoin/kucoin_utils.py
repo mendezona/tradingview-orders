@@ -443,7 +443,7 @@ def get_base_and_quote_currencies(kucoin_symbol: str) -> Tuple[str, str]:
 
     if len(parts) != 2:
         raise ValueError(
-            f"Invalid symbol format: '{kucoin_symbol}'. Expected format: 'BASE-QUOTE'"  # noqa: E501
+            f"Invalid symbol format: '{kucoin_symbol}'. Expected format: 'BASE-QUOTE'"  # noqa
         )
 
     # The first part is the base currency, and the second part
