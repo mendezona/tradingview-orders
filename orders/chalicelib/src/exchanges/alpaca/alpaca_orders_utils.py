@@ -18,6 +18,7 @@ from chalicelib.src.constants import (
     tax_rate,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_account_utils import (
+    alpaca_get_account_balance,
     alpaca_get_available_asset_balance,
     alpaca_get_credentials,
 )
@@ -28,16 +29,13 @@ from chalicelib.src.exchanges.alpaca.alpaca_constants import (
     alpaca_tradingview_symbols,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_order_history_utils import (
-    check_last_filled_order_type,
+    alpaca_check_last_filled_order_type,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_orders_helper import (
     alpaca_are_holdings_closed,
     alpaca_calculate_profit_loss,
     alpaca_get_latest_quote,
     alpaca_is_asset_fractionable,
-)
-from chalicelib.src.exchanges.alpaca.alpaca_orders_utils import (
-    alpaca_get_account_balance,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
@@ -84,7 +82,7 @@ def alpaca_submit_pair_trade_order(
     # sell all holdings of the inverse pair and save CGT to DynamoDB
     # Assumes there is only one order open at a time
     if (
-        check_last_filled_order_type(
+        alpaca_check_last_filled_order_type(
             symbol=alpaca_inverse_symbol, account=account
         )
         == OrderSide.BUY
