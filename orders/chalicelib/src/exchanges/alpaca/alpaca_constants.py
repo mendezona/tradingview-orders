@@ -34,6 +34,7 @@ alpaca_accounts: dict[str, dict[AlpacaAccountCredentials]] = {
 # Pairs
 alpaca_tradingview__symbols: dict[str, str] = {
     "<insert>": "<insert>",
+alpaca_tradingview_symbols: dict[str, str] = {
 }
 
 # Inverse pairs
