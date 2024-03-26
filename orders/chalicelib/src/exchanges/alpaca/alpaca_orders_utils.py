@@ -1,5 +1,5 @@
-import datetime
 import time
+from datetime import datetime
 from decimal import ROUND_DOWN, Decimal
 from typing import Any, Literal
 
@@ -180,11 +180,13 @@ def submit_limit_order_custom_quantity(
             latest_quote = alpaca_get_latest_quote(alpaca_symbol, account)
             if buy_side_order:
                 limit_price = Decimal(latest_quote["ask_price"]) + (
-                    Decimal(latest_quote["ask_price"]) * setSlippagePercentage
+                    Decimal(latest_quote["ask_price"])
+                    * Decimal(setSlippagePercentage)
                 )
             else:
                 limit_price = Decimal(latest_quote["bid_price"]) + (
-                    Decimal(latest_quote["bid_price"]) * setSlippagePercentage
+                    Decimal(latest_quote["bid_price"])
+                    * Decimal(setSlippagePercentage)
                 )
 
         # Set the order side
@@ -268,11 +270,13 @@ def submit_limit_order_custom_percentage(
             latest_quote = alpaca_get_latest_quote(alpaca_symbol, account)
             if buy_side_order:
                 limit_price = Decimal(latest_quote["ask_price"]) + (
-                    Decimal(latest_quote["ask_price"]) * setSlippagePercentage
+                    Decimal(latest_quote["ask_price"])
+                    * Decimal(setSlippagePercentage)
                 )
             else:
                 limit_price = Decimal(latest_quote["bid_price"]) + (
-                    Decimal(latest_quote["bid_price"]) * setSlippagePercentage
+                    Decimal(latest_quote["bid_price"])
+                    * Decimal(setSlippagePercentage)
                 )
 
         # Set the order side
