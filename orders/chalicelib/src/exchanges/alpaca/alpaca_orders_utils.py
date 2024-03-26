@@ -159,9 +159,7 @@ def submit_limit_order_custom_quantity(
 ) -> None:
     print("Alpaca Order Begin - submit_limit_order_custom_quantity")
     log_times_in_new_york_and_local_timezone()
-    credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
-        account
-    )
+    credentials: AlpacaAccountCredentials = alpaca_get_credentials(account)
 
     if credentials:
         trading_client = TradingClient(

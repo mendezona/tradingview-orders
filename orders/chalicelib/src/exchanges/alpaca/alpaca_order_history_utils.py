@@ -1,5 +1,6 @@
-from typing import Any, Dict, List
+from typing import List
 
+from alpaca.common import RawData
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, OrderStatus, QueryOrderStatus
 from alpaca.trading.models import Order
@@ -38,16 +39,14 @@ def alpaca_check_last_filled_order_type(
             paper=credentials["paper"],
         )
 
-        print("ARE WE HERE?")
-
         # Create filter to get last filled order of an asset
         filters = GetOrdersRequest(
             status=QueryOrderStatus.CLOSED, limit=10, symbols=[symbol]
         )
 
         # Fetch the list of closed orders for the specified symbol
-        closed_orders: List[Order] | Dict[str, Any] = (
-            trading_client.get_orders(filters)
+        closed_orders: List[Order] | RawData = trading_client.get_orders(
+            filters
         )
 
         print("Closed orders:", closed_orders)
