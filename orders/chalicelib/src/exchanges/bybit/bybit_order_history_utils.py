@@ -54,8 +54,7 @@ def bybit_get_most_recent_inverse_fill_to_stablecoin(
         or "list" not in executed_orders["result"]
         or len(executed_orders["result"]["list"]) == 0
     ):
-        print("Error - Stablecoin sell trade data invalid")
-        return "Error - Stablecoin sell trade data invalid"
+        return False
 
     orders = [
         order
