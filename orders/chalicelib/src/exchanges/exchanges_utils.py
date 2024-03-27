@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 from datetime import time as datetime_module_time
+from typing import Tuple
 
 import pytz
 from chalicelib.src.constants import local_tz
@@ -38,7 +39,18 @@ def is_outside_nasdaq_trading_hours() -> bool:
 # TO DO - Add unit tests
 def log_times_in_new_york_and_local_timezone(
     local_timezone=local_tz,
-):
+) -> tuple[datetime, datetime]:
+    """
+    Log times in New York and Local Timezone for easier troubleshooting with
+    US based assets
+
+    Parameters:
+    - local_timezone: Local timezone to check time for
+
+    Returns:
+    - Tuple of datetime objects, New York time and Local timezone time
+    """
+
     timezone_new_york = pytz.timezone("America/New_York")
     now_utc: datetime = datetime.now(pytz.utc)
     time_in_new_york: datetime = now_utc.astimezone(timezone_new_york)
@@ -51,3 +63,34 @@ def log_times_in_new_york_and_local_timezone(
         f"Current time in Berlin: {time_in_local_timezone.strftime('%Y-%m-%d %H:%M:%S')}"  # noqa: E501
     )
     return time_in_new_york, time_in_local_timezone
+
+
+def get_base_and_quote_assets(pair_symbol: str) -> Tuple[str, str]:
+    """
+    Find base and quote assets in a trade eg AAPL-BTC would be AAPL as base
+    currency and BTC as quote currency
+
+    Parameters:
+    - pair_symbol: Local timezone to check time for
+
+    Returns:
+    - Tuple of strings, Base currency and Quote currency
+    """
+
+    if "-" not in pair_symbol:
+        raise ValueError(
+            "Invalid symbol format. Expected format: 'BASE-QUOTE'"
+        )
+
+    parts: list[str] = pair_symbol.split("-")
+
+    if len(parts) != 2:
+        raise ValueError(
+            f"Invalid symbol format: '{pair_symbol}'. Expected format: 'BASE-QUOTE'"  # noqa: E501
+        )
+
+    return parts[0].upper(), parts[1].upper()
+
+
+def remove_hyphen_from_pair_symbol(pair_symbol: str) -> str:
+    return pair_symbol.replace("-", "")

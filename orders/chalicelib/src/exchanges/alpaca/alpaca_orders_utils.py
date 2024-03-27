@@ -91,14 +91,14 @@ def alpaca_submit_pair_trade_order(
             asset_balance = alpaca_get_available_asset_balance(
                 alpaca_inverse_symbol
             )["position_qty"]
-            submit_limit_order_custom_quantity(
+            alpaca_submit_limit_order_custom_quantity(
                 alpaca_inverse_symbol,
                 asset_balance,
                 buy_side_order=False,
                 setSlippagePercentage=alpaca_tolerated_aftermarket_slippage,
             )
         else:
-            close_all_holdings_of_asset(alpaca_inverse_symbol, account)
+            alpaca_close_all_holdings_of_asset(alpaca_inverse_symbol, account)
 
         # Wait for up to 10 seconds for holdings to close
         timeout = 10  # timeout in seconds
@@ -130,7 +130,7 @@ def alpaca_submit_pair_trade_order(
                 )
 
     (
-        submit_limit_order_custom_percentage(
+        alpaca_submit_limit_order_custom_percentage(
             alpaca_symbol,
             True,
             capital_percentage_to_deploy=capital_to_deploy,
@@ -138,7 +138,7 @@ def alpaca_submit_pair_trade_order(
             setSlippagePercentage=alpaca_tolerated_aftermarket_slippage,
         )
         if isOutsideNormalTradingHours
-        else submit_market_order_custom_percentage(  # noqa: E501
+        else alpaca_submit_market_order_custom_percentage(  # noqa: E501
             alpaca_symbol,
             True,
             capital_percentage_to_deploy=capital_to_deploy,
@@ -148,7 +148,7 @@ def alpaca_submit_pair_trade_order(
 
 
 # Submit a limit order for the custom quantity of a stock
-def submit_limit_order_custom_quantity(
+def alpaca_submit_limit_order_custom_quantity(
     alpaca_symbol: str,
     quantity: float,
     limit_price: Decimal = None,
@@ -157,7 +157,7 @@ def submit_limit_order_custom_quantity(
     time_in_force: TimeInForce = TimeInForce.DAY,
     setSlippagePercentage: Decimal = 0,
 ) -> None:
-    print("Alpaca Order Begin - submit_limit_order_custom_quantity")
+    print("Alpaca Order Begin - alpaca_submit_limit_order_custom_quantity")
     log_times_in_new_york_and_local_timezone()
     credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
@@ -221,7 +221,7 @@ def submit_limit_order_custom_quantity(
 
 
 # Submit limit order based on custom percentage of entire portfolio value
-def submit_limit_order_custom_percentage(
+def alpaca_submit_limit_order_custom_percentage(
     alpaca_symbol: str,
     buy_side_order: bool = True,
     capital_percentage_to_deploy: float = 1.0,
@@ -230,7 +230,7 @@ def submit_limit_order_custom_percentage(
     limit_price: Decimal = None,
     setSlippagePercentage: Decimal = 0,
 ) -> None:
-    print("Alpaca Order Begin - submit_limit_order_custom_percentage")
+    print("Alpaca Order Begin - alpaca_submit_limit_order_custom_percentage")
     log_times_in_new_york_and_local_timezone()
     credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
@@ -329,14 +329,14 @@ def submit_limit_order_custom_percentage(
 
 
 # Submit market order based on custom percentage of entire portfolio value
-def submit_market_order_custom_percentage(
+def alpaca_submit_market_order_custom_percentage(
     alpaca_symbol: str,
     buy_side_order: bool = True,
     capital_percentage_to_deploy: float = 1.0,
     account: str = alpaca_trading_account_name_live,
     time_in_force: TimeInForce = TimeInForce.DAY,
 ) -> None:
-    print("Alpaca Order Begin - submit_market_order_custom_percentage")
+    print("Alpaca Order Begin - alpaca_submit_market_order_custom_percentage")
     log_times_in_new_york_and_local_timezone()
     credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
@@ -421,14 +421,14 @@ def submit_market_order_custom_percentage(
 
 
 # Submit a market order with a custom $ amount
-def submit_market_order_custom_amount(
+def alpaca_submit_market_order_custom_amount(
     alpaca_symbol: str,
     dollar_amount: float,
     buy_side_order: bool = True,
     account: str = alpaca_trading_account_name_live,
     time_in_force: TimeInForce = TimeInForce.DAY,
 ) -> None:
-    print("Alpaca Order Begin - submit_market_order_custom_amount")
+    print("Alpaca Order Begin - alpaca_submit_market_order_custom_amount")
     log_times_in_new_york_and_local_timezone()
     credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account
@@ -500,11 +500,11 @@ def submit_market_order_custom_amount(
 
 
 # Sells all holdings of an asset
-def close_all_holdings_of_asset(
+def alpaca_close_all_holdings_of_asset(
     symbol: str,
     account: str = alpaca_trading_account_name_live,
 ) -> None:
-    print("Alpaca Order Begin - close_all_holdings_of_asset")
+    print("Alpaca Order Begin - alpaca_close_all_holdings_of_asset")
     log_times_in_new_york_and_local_timezone()
     credentials: AlpacaAccountCredentials | None = alpaca_get_credentials(
         account

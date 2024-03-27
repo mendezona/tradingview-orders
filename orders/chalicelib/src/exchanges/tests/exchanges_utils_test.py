@@ -1,3 +1,6 @@
+import pytest
+from chalicelib.src.exchanges.exchanges_utils import get_base_and_quote_assets
+
 # from datetime import datetime
 # from datetime import time as datetime_module_time
 # from unittest.mock import MagicMock, patch
@@ -94,3 +97,36 @@
 
 #     assert expected_new_york_time in times[0]
 #     assert expected_berlin_time in times[1]
+
+
+def test_get_base_and_quote_assets():
+    # Correct symbol format
+    pair_symbol_correct = "BTC-USDT"
+    base_currency, quote_currency = get_base_and_quote_assets(
+        pair_symbol_correct
+    )
+    assert base_currency == "BTC"
+    assert quote_currency == "USDT"
+
+    # Incorrect symbol format with lowercase letters
+    pair_symbol_lowercase = "btc-usdt"
+    base_currency, quote_currency = get_base_and_quote_assets(
+        pair_symbol_lowercase
+    )
+    assert base_currency == "BTC"
+    assert quote_currency == "USDT"
+
+    # Incorrect symbol format with missing hyphen
+    pair_symbol_missing_hyphen = "BTCUSDT"
+    with pytest.raises(ValueError):
+        get_base_and_quote_assets(pair_symbol_missing_hyphen)
+
+    # Incorrect symbol format with extra hyphen
+    pair_symbol_extra_hyphen = "BTC--USDT"
+    with pytest.raises(ValueError):
+        get_base_and_quote_assets(pair_symbol_extra_hyphen)
+
+    # Incorrect symbol format with different separator
+    pair_symbol_different_separator = "BTC_USDT"
+    with pytest.raises(ValueError):
+        get_base_and_quote_assets(pair_symbol_different_separator)

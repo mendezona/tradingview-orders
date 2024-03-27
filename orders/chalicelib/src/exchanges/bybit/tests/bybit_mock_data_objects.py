@@ -1,4 +1,28 @@
-# Mock response for a successful balance retrieval
+from chalicelib.src.exchanges.bybit.bybit_constants import (
+    bybit_account_type,
+    bybit_trading_account_name_live,
+    bybit_trading_account_name_paper,
+)
+from chalicelib.src.exchanges.bybit.bybit_types import BybitAccountCredentials
+
+# Mock response for bybit_get_credentials
+mock_bybit_accounts: dict[str, dict[BybitAccountCredentials]] = {
+    bybit_trading_account_name_live: {
+        "key": "live_key",
+        "secret": "live_secret_key",
+        "testnet": False,
+        "account_type": bybit_account_type,
+    },
+    bybit_trading_account_name_paper: {
+        "key": "paper_key",
+        "secret": "paper_secret",
+        "testnet": True,
+        "account_type": bybit_account_type,
+    },
+}
+
+
+# Mock response for bybit_get_coin_balance
 mock_coin_balance_response: dict[str, any] = {
     "retCode": 0,
     "retMsg": "OK",

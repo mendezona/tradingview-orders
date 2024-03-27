@@ -1,16 +1,38 @@
+from chalicelib.src.exchanges.bybit.bybit_types import BybitAccountCredentials
+
 # Bybit Credentials
-bybit_key: str = "<insert>"
-bybit_secret: str = "<insert>"
-bybit_account_type: str = "<insert>"
+bybit_trading_account_name_live: str = "live"
+
+bybit_trading_account_name_paper: str = "paper"
+
+bybit_account_type: str = "UNIFIED"
+
+bybit_accounts: dict[str, dict[BybitAccountCredentials]] = {
+    bybit_trading_account_name_live: {
+        "api_key": "<insert>",
+        "api_secret": "<insert>",
+        "testnet": False,
+    },
+    bybit_trading_account_name_paper: {
+        "api_key": "<insert>",
+        "api_secret": "<insert>",
+        "testnet": True,
+    },
+}
+
+bybit_default_product_category: str = "spot"
+
+# Bybit trading information
+bybit_preferred_stablecoin: str = "USDT"
+
+bybit_tax_pair: str = "USDC-USDT"
 
 # Pairs
-bybit_symbols: dict[str, str] = {
-    "<insert>": "<insert>",
+tradingview_bybit_symbols: dict[str, str] = {
     "<insert>": "<insert>",
 }
 
 # Inverse pairs
-bybit_symbols: dict[str, str] = {
-    "<insert>": "<insert>",
+tradingview_bybit_inverse_symbols: dict[str, str] = {
     "<insert>": "<insert>",
 }
