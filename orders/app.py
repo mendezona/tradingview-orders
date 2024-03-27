@@ -1,13 +1,13 @@
 from chalice import Chalice
-
-# from chalicelib.src.aws.aws_constants import dynamodb_table_names_instance
-# from chalicelib.src.aws.dynamo_db import create_new_dynamodb_instance
-# from chalicelib.src.exchanges.alpaca.alpaca_orders_helper import (
-#     alpaca_get_latest_quote,
-# )
 from chalicelib.src.exchanges.alpaca.alpaca_orders_utils import (
     alpaca_submit_pair_trade_order,
 )
+from chalicelib.src.exchanges.bybit.bybit_order_utils import (
+    bybit_submit_pair_trade_order,
+)
+
+# from chalicelib.src.aws.aws_constants import dynamodb_table_names_instance
+# from chalicelib.src.aws.dynamo_db import create_new_dynamodb_instance
 
 app = Chalice(app_name="orders")
 
@@ -18,7 +18,7 @@ Developer / Utility Routes
 
 # @app.route("/")
 # def hello():
-#     alpaca_get_latest_quote("AAPL")
+#     bybit_get_most_recent_inverse_fill_to_stablecoin("USDCUSDT")
 #     return {"hello": "world"}
 
 
@@ -38,16 +38,6 @@ Alpaca Routes
 """
 
 
-# @app.route("/alpacatest")
-# def alpaca_test():
-#     # request = app.current_request
-#     # tradingViewWebhookMessage = request.json_body
-#     # print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
-#     test_alpaca_function()
-
-#     return {"hello": "world"}
-
-
 @app.route("/alpacapairtradebuyalert", methods=["POST"])
 def alpaca_pair_trade_buy_alert():
     request = app.current_request
@@ -55,7 +45,10 @@ def alpaca_pair_trade_buy_alert():
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
     alpaca_submit_pair_trade_order(tradingViewWebhookMessage["ticker"])
 
-    return {"message": "market order executed"}
+    return {
+        "message": "alpacapairtradebuyalert - alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
 
 
 @app.route("/alpacapairtradesellalert", methods=["POST"])
@@ -68,40 +61,73 @@ def alpaca_pair_trade_sell_alert():
     )
 
     return {
-        "message": "alert received",
+        "message": "alpacapairtradesellalert - alert received",
         "tradingViewWebhookMessage": tradingViewWebhookMessage,
     }
 
 
-@app.route("/alpacapairtradebuyalertnotax", methods=["POST"])
-def alpaca_pair_trade_buy_alert_no_tax():
+# @app.route("/alpacapairtradebuyalertnotax", methods=["POST"])
+# def alpaca_pair_trade_buy_alert_no_tax():
+#     request = app.current_request
+#     tradingViewWebhookMessage = request.json_body
+#     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+#     alpaca_submit_pair_trade_order(
+#         tradingview_symbol=tradingViewWebhookMessage["ticker"],
+#         calculate_tax=False,
+#     )
+
+#     return {
+#         "message": "alpacapairtradebuyalertnotax - alert received",
+#         "tradingViewWebhookMessage": tradingViewWebhookMessage,
+#     }
+
+
+# @app.route("/alpacapairtradesellalertnotax", methods=["POST"])
+# def alpaca_pair_trade_sell_alert_no_tax():
+#     request = app.current_request
+#     tradingViewWebhookMessage = request.json_body
+#     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+#     alpaca_submit_pair_trade_order(
+#         tradingview_symbol=tradingViewWebhookMessage["ticker"],
+#         calculate_tax=False,
+#         buy_alert=False,
+#     )
+
+#     return {
+#         "message": "alpacapairtradesellalertnotax - alert received",
+#         "tradingViewWebhookMessage": tradingViewWebhookMessage,
+#     }
+
+
+"""
+Bybit Routes
+"""
+
+
+@app.route("/bybitpairtradebuyalert", methods=["POST"])
+def bybit_pair_trade_buy_alert():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
-    alpaca_submit_pair_trade_order(
-        tradingview_symbol=tradingViewWebhookMessage["ticker"],
-        calculate_tax=False,
-    )
+    bybit_submit_pair_trade_order(tradingViewWebhookMessage["ticker"])
 
     return {
-        "message": "alert received",
+        "message": "bybitpairtradebuyalert - alert received",
         "tradingViewWebhookMessage": tradingViewWebhookMessage,
     }
 
 
-@app.route("/alpacapairtradesellalertnotax", methods=["POST"])
-def alpaca_pair_trade_sell_alert_no_tax():
+@app.route("/bybitpairtradesellalert", methods=["POST"])
+def bybit_pair_trade_sell_alert():
     request = app.current_request
     tradingViewWebhookMessage = request.json_body
     print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
-    alpaca_submit_pair_trade_order(
-        tradingview_symbol=tradingViewWebhookMessage["ticker"],
-        calculate_tax=False,
-        buy_alert=False,
+    bybit_submit_pair_trade_order(
+        tradingViewWebhookMessage["ticker"], buy_alert=False
     )
 
     return {
-        "message": "alert received",
+        "message": "bybitpairtradesellalert - alert received",
         "tradingViewWebhookMessage": tradingViewWebhookMessage,
     }
 
