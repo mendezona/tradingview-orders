@@ -105,7 +105,7 @@ def bybit_submit_pair_trade_order(
 
         # Calculate tax to convert to preferred tax stablecoin
         if calculate_tax:
-            profit_loss_amount: Decimal | str = bybit_calculate_profit_loss(
+            profit_loss_amount: Decimal = bybit_calculate_profit_loss(
                 pair_inverse_symbol, account_name
             )
             tax_amount: Decimal = Decimal(profit_loss_amount) * Decimal(
@@ -168,7 +168,7 @@ def bybit_submit_market_order_custom_percentage(
     basePrecision: str | Any = increments_object.get("basePrecision")
     quotePrecision: str | Any = increments_object.get("quotePrecision")
     symbol_minimum_increment: Decimal = (
-        Decimal(basePrecision) if buy_side_order else Decimal(quotePrecision)
+        Decimal(quotePrecision) if buy_side_order else Decimal(basePrecision)
     )
 
     # Calculate funds to deploy

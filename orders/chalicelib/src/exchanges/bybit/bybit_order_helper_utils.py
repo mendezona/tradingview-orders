@@ -87,7 +87,7 @@ def bybit_get_symbol_increments(
 def bybit_calculate_profit_loss(
     bybit_pair_symbol: str,
     account_name: str = bybit_trading_account_name_live,
-) -> Decimal | str:
+) -> Decimal:
     """
     Calculates the profit/loss of the last order. Limitation is that last
     order needs to be made in the last 7 days
@@ -97,7 +97,7 @@ def bybit_calculate_profit_loss(
     - account_name: Account to use for search
 
     Returns:
-    - A Decimal with the profit or loss amount or a string with the error
+    - A Decimal with the profit or loss amount
     """
 
     credentials: BybitAccountCredentials = bybit_get_credentials(account_name)
@@ -124,7 +124,7 @@ def bybit_calculate_profit_loss(
         or len(executed_orders["result"]["list"]) == 0
     ):
         print("Error - Invalid executed order data")
-        return "Error - Invalid executed order data"
+        return Decimal(0)
 
     # Filter orders for the specific symbol
     orders = [
@@ -165,7 +165,10 @@ def bybit_calculate_profit_loss(
                 break
 
     if total_opposite_qty != last_order_qty:
-        return "Error - Could not match the last order quantity with opposite side orders"  # noqa: E501
+        print(
+            "Error - Could not match the last order quantity with opposite side orders"  # noqa: E501
+        )
+        return Decimal(0)
 
     profit_or_loss: Decimal = (
         Decimal(last_order_exec_value - total_opposite_exec_value)
