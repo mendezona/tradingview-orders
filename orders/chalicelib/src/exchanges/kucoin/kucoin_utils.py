@@ -6,6 +6,7 @@ from chalicelib.src.constants import (
     development_mode,
     tax_rate,
 )
+from chalicelib.src.exchanges.exchanges_utils import get_base_and_quote_assets
 from chalicelib.src.exchanges.kucoin.kucoin_constants import (
     base_url,
     kucoin_account_names,
@@ -89,7 +90,7 @@ def submit_pair_trade_order(
         (
             base_currency_inverse,
             quote_currency_inverse,
-        ) = get_base_and_quote_currencies(kucoin_inverse_symbol)
+        ) = get_base_and_quote_assets(kucoin_inverse_symbol)
         if (
             base_currency_inverse != preferred_stablecoin
             and quote_currency_inverse != preferred_stablecoin
@@ -139,18 +140,16 @@ def get_most_recent_inverse_fill_to_stablecoin(
     stablecoin=preferred_stablecoin,
     account=kucoin_account_names[0],
 ):
-    base_currency, quote_currency = get_base_and_quote_currencies(
-        kucoin_symbol
-    )
-    buyOrSellToStablecoin = ""
+    base_currency, quote_currency = get_base_and_quote_assets(kucoin_symbol)
+    buyOrSellToStablecoin: str = ""
     if base_currency != stablecoin and quote_currency != stablecoin:
         raise ValueError(
-            "Base stablecoin currency for calculatng profit/loss not found"
+            "Base stablecoin currency for calculatng most recent fill not found"  # noqa: E501
         )
     if base_currency == stablecoin:
-        buyOrSellToStablecoin = "sell"
+        buyOrSellToStablecoin: str = "sell"
     elif quote_currency == stablecoin:
-        buyOrSellToStablecoin = "buy"
+        buyOrSellToStablecoin: str = "buy"
     buyOrSellToStablecoin = (
         "sell" if base_currency == stablecoin else "quote_currency"
     )
@@ -186,9 +185,7 @@ def submit_market_order_custom_percentage(
     capital_percentage_to_deploy=1,
     account=kucoin_account_names[0],
 ):
-    base_currency, quote_currency = get_base_and_quote_currencies(
-        kucoin_symbol
-    )
+    base_currency, quote_currency = get_base_and_quote_assets(kucoin_symbol)
     print(
         "currency search", quote_currency if buy_side_order else base_currency
     )
@@ -269,9 +266,7 @@ def calculate_profit_loss(
     recent_fills = client.get_fill_list(
         tradeType=trade_account.upper(), symbol=kucoin_symbol
     )
-    base_currency, quote_currency = get_base_and_quote_currencies(
-        kucoin_symbol
-    )
+    base_currency, quote_currency = get_base_and_quote_assets(kucoin_symbol)
     sell_funds = []
     buy_funds = []
     profitOrLoss = 0
@@ -319,9 +314,7 @@ def submit_market_order_custom_amount(
     capital_amount_to_deploy: int = 0,
     account: str = kucoin_account_names[0],
 ) -> None:
-    base_currency, quote_currency = get_base_and_quote_currencies(
-        kucoin_symbol
-    )
+    base_currency, quote_currency = get_base_and_quote_assets(kucoin_symbol)
     print(
         "currency search", quote_currency if buy_side_order else base_currency
     )
@@ -429,23 +422,3 @@ def get_symbol_increments(
 
     # Return None if the symbol is not found
     return None, None
-
-
-# Find base and quote currencies, add this when using this function
-# base_currency, quote_currency = get_base_and_quote_currencies(kucoin_symbol)
-def get_base_and_quote_currencies(kucoin_symbol: str) -> Tuple[str, str]:
-    if "-" not in kucoin_symbol:
-        raise ValueError(
-            "Invalid symbol format. Expected format: 'BASE-QUOTE'"
-        )
-
-    parts: list[str] = kucoin_symbol.split("-")
-
-    if len(parts) != 2:
-        raise ValueError(
-            f"Invalid symbol format: '{kucoin_symbol}'. Expected format: 'BASE-QUOTE'"  # noqa
-        )
-
-    # The first part is the base currency, and the second part
-    # is the quote currency
-    return parts[0].upper(), parts[1].upper()
