@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Dict, List
 
 from alpaca.common import RawData
@@ -168,8 +168,12 @@ def alpaca_get_latest_quote(
                 or symbol_quote_latest.ask_price > 0
             ):
                 latest_quote: AlpacaGetLatestQuote = {
-                    "ask_price": Decimal(symbol_quote_latest.ask_price),
-                    "bid_price": Decimal(symbol_quote_latest.bid_price),
+                    "ask_price": Decimal(
+                        symbol_quote_latest.ask_price
+                    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+                    "bid_price": Decimal(
+                        symbol_quote_latest.bid_price
+                    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
                     "ask_size": symbol_quote_latest.ask_size,
                     "bid_size": symbol_quote_latest.bid_size,
                 }
@@ -187,8 +191,12 @@ def alpaca_get_latest_quote(
             quote: Any = quotes[symbol][0]
             if quote.bid_price and quote.ask_price:
                 latest_quote: AlpacaGetLatestQuote = {
-                    "ask_price": Decimal(quote.ask_price),
-                    "bid_price": Decimal(quote.bid_price),
+                    "ask_price": Decimal(quote.ask_price).quantize(
+                        Decimal("0.01"), rounding=ROUND_HALF_UP
+                    ),
+                    "bid_price": Decimal(quote.bid_price).quantize(
+                        Decimal("0.01"), rounding=ROUND_HALF_UP
+                    ),
                     "ask_size": quote.ask_size,
                     "bid_size": quote.bid_size,
                 }
@@ -206,8 +214,12 @@ def alpaca_get_latest_quote(
             bars: BarSet | RawData = client.get_stock_bars(bar_request_params)
             bar: Any = bars[symbol][0]
             latest_quote: AlpacaGetLatestQuote = {
-                "ask_price": Decimal(bar.close),
-                "bid_price": Decimal(bar.close),
+                "ask_price": Decimal(bar.close).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                ),
+                "bid_price": Decimal(bar.close).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                ),
                 "close_price": Decimal(bar.close),
                 "volume": bar.volume,
             }
