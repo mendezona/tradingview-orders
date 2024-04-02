@@ -13,9 +13,9 @@ from alpaca.trading.requests import (
 from chalicelib.src.aws.aws_constants import dynamodb_table_names_instance
 from chalicelib.src.aws.aws_utils import save_CGT_amount_to_dynamoDB
 from chalicelib.src.constants import (
+    capital_gains_tax_rate,
     capital_to_deploy_percentage,
     local_tz,
-    tax_rate,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_account_utils import (
     alpaca_get_account_balance,
@@ -114,7 +114,7 @@ def alpaca_submit_pair_trade_order(
                 alpaca_inverse_symbol, account
             )
             tax_amount: Decimal = Decimal(profit_loss_amount) * Decimal(
-                tax_rate
+                capital_gains_tax_rate
             )
             print("tax_amount", profit_loss_amount, "\n")
 

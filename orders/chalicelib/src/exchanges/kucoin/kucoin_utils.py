@@ -3,8 +3,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from chalicelib.src.constants import (
     capital_to_deploy_percentage,
+    country_personal_income_tax_rate,
     development_mode,
-    tax_rate,
 )
 from chalicelib.src.exchanges.exchanges_utils import get_base_and_quote_assets
 from chalicelib.src.exchanges.kucoin.kucoin_constants import (
@@ -119,7 +119,7 @@ def submit_pair_trade_order(
             profit_loss_amount = calculate_profit_loss(
                 kucoin_inverse_symbol, account
             )
-            tax_amount = profit_loss_amount * tax_rate
+            tax_amount = profit_loss_amount * country_personal_income_tax_rate
             print("tax_amount", profit_loss_amount, "\n")
 
             if tax_amount > 0:
