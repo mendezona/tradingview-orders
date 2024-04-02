@@ -38,8 +38,6 @@ def alpaca_check_last_filled_order_type(
             paper=credentials["paper"],
         )
 
-        print("ARE WE HERE?")
-
         # Create filter to get last filled order of an asset
         filters = GetOrdersRequest(
             status=QueryOrderStatus.CLOSED, limit=10, symbols=[symbol]
