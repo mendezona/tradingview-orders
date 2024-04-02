@@ -1,7 +1,10 @@
 from decimal import ROUND_DOWN, Decimal
 from typing import Any
 
-from chalicelib.src.constants import capital_to_deploy_percentage, tax_rate
+from chalicelib.src.constants import (
+    capital_to_deploy_percentage,
+    country_personal_income_tax_rate,
+)
 from chalicelib.src.exchanges.bybit.bybit_account_utils import (
     bybit_get_coin_balance,
     bybit_get_credentials,
@@ -109,7 +112,7 @@ def bybit_submit_pair_trade_order(
                 pair_inverse_symbol, account_name
             )
             tax_amount: Decimal = Decimal(profit_loss_amount) * Decimal(
-                tax_rate
+                country_personal_income_tax_rate
             )
             print("Tax amount:", profit_loss_amount)
 

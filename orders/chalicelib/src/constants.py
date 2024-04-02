@@ -6,11 +6,14 @@ import pytz
 development_mode: bool = False
 
 # General finance constants
-country_personal_tax_rate: Decimal = 0.42
 
-tax_rate: Decimal = country_personal_tax_rate
+# Used for calculating tax on crypto assets
+country_personal_income_tax_rate: Decimal = Decimal(0.42)
 
-capital_to_deploy_percentage: Decimal = 0.33
+# Used for calculating tax on stocks
+capital_gains_tax_rate: Decimal = Decimal(0.26375)
+
+capital_to_deploy_percentage: Decimal = Decimal(0.33)
 
 # TradingView Constants
 tradingview_ticker: str = "ticker"
