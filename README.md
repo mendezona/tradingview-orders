@@ -19,7 +19,7 @@ Dependencies:
 
 How to start project:
 
-- Check python 3.7.3 is installed
+- Check python 3.9+ is installed
 - python3 --version
 - Setup virtual environment in project folder
 - python3 -m venv myenvtradingvieworders
