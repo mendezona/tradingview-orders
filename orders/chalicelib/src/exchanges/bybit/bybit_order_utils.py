@@ -1,7 +1,10 @@
 from decimal import ROUND_DOWN, Decimal
 from typing import Any
 
-from chalicelib.src.constants import capital_to_deploy_percentage, tax_rate
+from chalicelib.src.constants import (
+    capital_to_deploy_percentage,
+    country_personal_income_tax_rate,
+)
 from chalicelib.src.exchanges.bybit.bybit_account_utils import (
     bybit_get_coin_balance,
     bybit_get_credentials,
@@ -105,11 +108,11 @@ def bybit_submit_pair_trade_order(
 
         # Calculate tax to convert to preferred tax stablecoin
         if calculate_tax:
-            profit_loss_amount: Decimal | str = bybit_calculate_profit_loss(
+            profit_loss_amount: Decimal = bybit_calculate_profit_loss(
                 pair_inverse_symbol, account_name
             )
             tax_amount: Decimal = Decimal(profit_loss_amount) * Decimal(
-                tax_rate
+                country_personal_income_tax_rate
             )
             print("Tax amount:", profit_loss_amount)
 
@@ -168,7 +171,7 @@ def bybit_submit_market_order_custom_percentage(
     basePrecision: str | Any = increments_object.get("basePrecision")
     quotePrecision: str | Any = increments_object.get("quotePrecision")
     symbol_minimum_increment: Decimal = (
-        Decimal(basePrecision) if buy_side_order else Decimal(quotePrecision)
+        Decimal(quotePrecision) if buy_side_order else Decimal(basePrecision)
     )
 
     # Calculate funds to deploy

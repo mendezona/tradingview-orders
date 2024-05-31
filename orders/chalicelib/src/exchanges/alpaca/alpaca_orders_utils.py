@@ -1,10 +1,12 @@
 import time
 from datetime import datetime
-from decimal import ROUND_DOWN, Decimal
-from typing import Any, Literal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
+from typing import Any, Dict, Literal
 
+from alpaca.common import RawData
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
+from alpaca.trading.models import Order
 from alpaca.trading.requests import (
     LimitOrderRequest,
     MarketOrderRequest,
@@ -13,9 +15,9 @@ from alpaca.trading.requests import (
 from chalicelib.src.aws.aws_constants import dynamodb_table_names_instance
 from chalicelib.src.aws.aws_utils import save_CGT_amount_to_dynamoDB
 from chalicelib.src.constants import (
+    capital_gains_tax_rate,
     capital_to_deploy_percentage,
     local_tz,
-    tax_rate,
 )
 from chalicelib.src.exchanges.alpaca.alpaca_account_utils import (
     alpaca_get_account_balance,
@@ -39,6 +41,7 @@ from chalicelib.src.exchanges.alpaca.alpaca_orders_helper import (
 )
 from chalicelib.src.exchanges.alpaca.alpaca_types import (
     AlpacaAccountCredentials,
+    AlpacaGetLatestQuote,
 )
 from chalicelib.src.exchanges.exchanges_utils import (
     is_outside_nasdaq_trading_hours,
@@ -55,22 +58,22 @@ from chalicelib.src.exchanges.exchanges_utils import (
 
 
 def alpaca_submit_pair_trade_order(
-    tradingview_symbol,
-    capital_to_deploy=capital_to_deploy_percentage,
-    calculate_tax=True,
-    buy_alert=True,
-    account=alpaca_trading_account_name_live,
+    tradingview_symbol: str,
+    capital_to_deploy: Decimal = capital_to_deploy_percentage,
+    calculate_tax: bool = True,
+    buy_alert: bool = True,
+    account: str = alpaca_trading_account_name_live,
 ):
     print("Alpaca Order Begin - alpaca_submit_pair_trade_order")
     log_times_in_new_york_and_local_timezone()
 
     # Check if there is an inverse order open
-    alpaca_symbol = (
+    alpaca_symbol: str = (
         alpaca_tradingview_symbols[tradingview_symbol]
         if buy_alert
         else alpaca_tradingview_inverse_pairs[tradingview_symbol]
     )
-    alpaca_inverse_symbol = (
+    alpaca_inverse_symbol: str = (
         alpaca_tradingview_inverse_pairs[tradingview_symbol]
         if buy_alert
         else alpaca_tradingview_symbols[tradingview_symbol]
@@ -88,7 +91,7 @@ def alpaca_submit_pair_trade_order(
         == OrderSide.BUY
     ):
         if isOutsideNormalTradingHours:
-            asset_balance = alpaca_get_available_asset_balance(
+            asset_balance: float | Any = alpaca_get_available_asset_balance(
                 alpaca_inverse_symbol
             )["position_qty"]
             alpaca_submit_limit_order_custom_quantity(
@@ -101,8 +104,8 @@ def alpaca_submit_pair_trade_order(
             alpaca_close_all_holdings_of_asset(alpaca_inverse_symbol, account)
 
         # Wait for up to 10 seconds for holdings to close
-        timeout = 10  # timeout in seconds
-        start_time = time.time()
+        timeout: int = 10  # timeout in seconds
+        start_time: float = time.time()
         while time.time() - start_time < timeout:
             if alpaca_are_holdings_closed(alpaca_inverse_symbol, account):
                 break
@@ -110,11 +113,11 @@ def alpaca_submit_pair_trade_order(
 
         # Calculate and save tax, if applicable
         if calculate_tax:
-            profit_loss_amount = alpaca_calculate_profit_loss(
+            profit_loss_amount: Decimal = alpaca_calculate_profit_loss(
                 alpaca_inverse_symbol, account
             )
             tax_amount: Decimal = Decimal(profit_loss_amount) * Decimal(
-                tax_rate
+                capital_gains_tax_rate
             )
             print("tax_amount", profit_loss_amount, "\n")
 
@@ -164,37 +167,49 @@ def alpaca_submit_limit_order_custom_quantity(
     )
 
     if credentials:
-        trading_client = TradingClient(
+        trading_client: TradingClient = TradingClient(
             api_key=credentials["key"],
             secret_key=credentials["secret"],
             paper=credentials["paper"],
         )
 
         # Check if the asset is fractionable
-        fractionable = alpaca_is_asset_fractionable(
-            alpaca_symbol, trading_client
+        fractionable: bool = alpaca_is_asset_fractionable(
+            alpaca_symbol, account
         )
 
         # Set the default limit price using the latest quote
         if limit_price is None:
-            latest_quote = alpaca_get_latest_quote(alpaca_symbol, account)
+            latest_quote: AlpacaGetLatestQuote | Dict[str, str] = (
+                alpaca_get_latest_quote(alpaca_symbol, account)
+            )
             if buy_side_order:
-                limit_price = Decimal(latest_quote["ask_price"]) + (
+                quote_price: Decimal = (
                     Decimal(latest_quote["ask_price"])
-                    * Decimal(setSlippagePercentage)
+                    if latest_quote["ask_price"] != Decimal(0)
+                    else Decimal(latest_quote["bid_price"])
                 )
+                limit_price = Decimal(
+                    Decimal(quote_price)
+                    + (Decimal(quote_price) * Decimal(setSlippagePercentage))
+                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             else:
-                limit_price = Decimal(latest_quote["bid_price"]) + (
+                quote_price: Decimal = (
                     Decimal(latest_quote["bid_price"])
-                    * Decimal(setSlippagePercentage)
+                    if latest_quote["bid_price"] != Decimal(0)
+                    else Decimal(latest_quote["ask_price"])
                 )
+                limit_price = Decimal(
+                    Decimal(quote_price)
+                    + (Decimal(quote_price) * Decimal(setSlippagePercentage))
+                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         # Set the order side
         order_side: OrderSide = "buy" if buy_side_order else "sell"
 
         # Prepare limit order parameters
         if fractionable:
-            order_request = LimitOrderRequest(
+            order_request: LimitOrderRequest = LimitOrderRequest(
                 symbol=alpaca_symbol,
                 notional=round(Decimal(quantity) * limit_price, 2),
                 side=order_side,
@@ -202,7 +217,7 @@ def alpaca_submit_limit_order_custom_quantity(
                 limit_price=limit_price,
             )
         else:
-            order_request = LimitOrderRequest(
+            order_request: LimitOrderRequest = LimitOrderRequest(
                 symbol=alpaca_symbol,
                 qty=Decimal(quantity).quantize(
                     Decimal("1"), rounding=ROUND_DOWN
@@ -214,7 +229,9 @@ def alpaca_submit_limit_order_custom_quantity(
 
         # Create and submit the limit order
         try:
-            order_response = trading_client.submit_order(order_request)
+            order_response: Order | RawData = trading_client.submit_order(
+                order_request
+            )
             print(f"Limit {order_side} order submitted: \n", order_response)
         except Exception as e:
             print(f"An error occurred while submitting the order: {e}")
@@ -237,7 +254,7 @@ def alpaca_submit_limit_order_custom_percentage(
     )
 
     if credentials:
-        trading_client = TradingClient(
+        trading_client: TradingClient = TradingClient(
             api_key=credentials["key"],
             secret_key=credentials["secret"],
             paper=credentials["paper"],
@@ -264,32 +281,44 @@ def alpaca_submit_limit_order_custom_percentage(
         # If funds are less that funds to deploy, deploy all cash
         # Can be useful if funds are still settling
         if funds_to_deploy > Decimal(account_cash):
-            funds_to_deploy = Decimal(account_cash)
+            funds_to_deploy: Decimal = Decimal(account_cash)
 
         if limit_price is None:
-            latest_quote = alpaca_get_latest_quote(alpaca_symbol, account)
+            latest_quote: AlpacaGetLatestQuote | Dict[str, str] = (
+                alpaca_get_latest_quote(alpaca_symbol, account)
+            )
             if buy_side_order:
-                limit_price = Decimal(latest_quote["ask_price"]) + (
+                quote_price: Decimal = (
                     Decimal(latest_quote["ask_price"])
-                    * Decimal(setSlippagePercentage)
+                    if latest_quote["ask_price"] != Decimal(0)
+                    else Decimal(latest_quote["bid_price"])
                 )
+                limit_price = Decimal(
+                    Decimal(quote_price)
+                    + (Decimal(quote_price) * Decimal(setSlippagePercentage))
+                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             else:
-                limit_price = Decimal(latest_quote["bid_price"]) + (
+                quote_price: Decimal = (
                     Decimal(latest_quote["bid_price"])
-                    * Decimal(setSlippagePercentage)
+                    if latest_quote["bid_price"] != Decimal(0)
+                    else Decimal(latest_quote["ask_price"])
                 )
+                limit_price = Decimal(
+                    Decimal(quote_price)
+                    + (Decimal(quote_price) * Decimal(setSlippagePercentage))
+                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         # Set the order side
         order_side: OrderSide = "buy" if buy_side_order else "sell"
 
         # Check if asset is fractionable
         fractionable: bool = alpaca_is_asset_fractionable(
-            alpaca_symbol, trading_client
+            alpaca_symbol, account
         )
 
         # Prepare order parameters
         if fractionable:
-            order_request = LimitOrderRequest(
+            order_request: LimitOrderRequest = LimitOrderRequest(
                 symbol=alpaca_symbol,
                 notional=round(funds_to_deploy, 2),
                 side=order_side,
@@ -299,7 +328,9 @@ def alpaca_submit_limit_order_custom_percentage(
         else:
             # For non-fractionable assets, calculate quantity using latest
             # quote
-            latest_quote = alpaca_get_latest_quote(alpaca_symbol, account)
+            latest_quote: AlpacaGetLatestQuote | Dict[str, str] = (
+                alpaca_get_latest_quote(alpaca_symbol, account)
+            )
             price: Decimal = Decimal(
                 latest_quote["ask_price"]
                 if latest_quote["bid_price"] == Decimal(0)
@@ -322,7 +353,9 @@ def alpaca_submit_limit_order_custom_percentage(
 
         # Create and submit the limit order
         try:
-            order_response = trading_client.submit_order(order_request)
+            order_response: Order | RawData = trading_client.submit_order(
+                order_request
+            )
             print(f"Limit {order_side} order submitted: \n", order_response)
         except Exception as e:
             print(f"An error occurred while submitting the order: {e}")
@@ -343,7 +376,7 @@ def alpaca_submit_market_order_custom_percentage(
     )
 
     if credentials:
-        trading_client = TradingClient(
+        trading_client: TradingClient = TradingClient(
             api_key=credentials["key"],
             secret_key=credentials["secret"],
             paper=credentials["paper"],
@@ -356,9 +389,9 @@ def alpaca_submit_market_order_custom_percentage(
         account_cash: Any | str = account_info["account_cash"]
 
         # Get account balance
-        account_value = Decimal(account_equity)
+        account_value: Decimal = Decimal(account_equity)
         capital_percentage_to_deploy = Decimal(capital_percentage_to_deploy)
-        funds_to_deploy = (
+        funds_to_deploy: Decimal = Decimal(
             account_value * capital_percentage_to_deploy
         ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
 
@@ -377,13 +410,13 @@ def alpaca_submit_market_order_custom_percentage(
 
         # Check if asset is fractionable
         fractionable: bool = alpaca_is_asset_fractionable(
-            alpaca_symbol, trading_client
+            alpaca_symbol, account
         )
 
         # Prepare order parameters
         if fractionable:
             # For fractionable assets, use the notional value
-            order_request = MarketOrderRequest(
+            order_request: MarketOrderRequest = MarketOrderRequest(
                 symbol=alpaca_symbol,
                 notional=round(funds_to_deploy, 2),
                 side=order_side,
@@ -392,7 +425,9 @@ def alpaca_submit_market_order_custom_percentage(
         else:
             # For non-fractionable assets, calculate quantity using latest
             # quote
-            latest_quote = alpaca_get_latest_quote(alpaca_symbol, account)
+            latest_quote: AlpacaGetLatestQuote | Dict[str, str] = (
+                alpaca_get_latest_quote(alpaca_symbol, account)
+            )
             price: Decimal = Decimal(
                 latest_quote["ask_price"]
                 if latest_quote["bid_price"] == Decimal(0)
@@ -405,7 +440,7 @@ def alpaca_submit_market_order_custom_percentage(
                 )  # 3% margin of error for latest quote unreliabiity
             ) / price
 
-            order_request = MarketOrderRequest(
+            order_request: MarketOrderRequest = MarketOrderRequest(
                 symbol=alpaca_symbol,
                 qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
                 side=order_side,
@@ -414,7 +449,9 @@ def alpaca_submit_market_order_custom_percentage(
 
         # Create and submit the market order
         try:
-            order_response = trading_client.submit_order(order_request)
+            order_response: Order | RawData = trading_client.submit_order(
+                order_request
+            )
             print(f"Market {order_side} order submitted: \n", order_response)
         except Exception as e:
             print(f"An error occurred while submitting the order: {e}")
@@ -435,14 +472,16 @@ def alpaca_submit_market_order_custom_amount(
     )
 
     if credentials:
-        trading_client = TradingClient(
+        trading_client: TradingClient = TradingClient(
             api_key=credentials["key"],
             secret_key=credentials["secret"],
             paper=credentials["paper"],
         )
 
         # Check if asset is fractionable
-        fractionable: bool = alpaca_is_asset_fractionable(alpaca_symbol)
+        fractionable: bool = alpaca_is_asset_fractionable(
+            alpaca_symbol, account
+        )
 
         # Convert dollar amount to Decimal
         funds_to_deploy: Decimal = Decimal(dollar_amount).quantize(
@@ -467,7 +506,9 @@ def alpaca_submit_market_order_custom_amount(
         # the fund amount
 
         else:
-            latest_quote = alpaca_get_latest_quote(alpaca_symbol, account)
+            latest_quote: AlpacaGetLatestQuote | Dict[str, str] = (
+                alpaca_get_latest_quote(alpaca_symbol, account)
+            )
             price: Decimal = Decimal(
                 latest_quote["ask_price"]
                 if latest_quote["bid_price"] == Decimal(0)
@@ -511,7 +552,7 @@ def alpaca_close_all_holdings_of_asset(
     )
 
     if credentials:
-        trading_client = TradingClient(
+        trading_client: TradingClient = TradingClient(
             api_key=credentials["key"],
             secret_key=credentials["secret"],
             paper=credentials["paper"],
