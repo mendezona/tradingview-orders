@@ -48,13 +48,8 @@ from chalicelib.src.exchanges.exchanges_utils import (
     log_times_in_new_york_and_local_timezone,
 )
 
-# TO DO ADD PRINT TIMES IN NEW YORK AND BERLIN TO THIS FUNCTION ALONG WITH
-# EACH TYPE OF ORDER TO THE TOP SO WE CAN SEE WHAT IS ADDED TO THE LOGS FOR
-# EASIER TROUBLESHOOTING EG> SUBMIT PAIR TRADE ORDER AND PRINT TIMES
-
 # TO DO - Refactor and add tests
 # TO DO - Check all types
-# TO DO - Improve error logs
 
 
 def alpaca_submit_pair_trade_order(
@@ -215,6 +210,7 @@ def alpaca_submit_limit_order_custom_quantity(
                 side=order_side,
                 time_in_force=time_in_force,
                 limit_price=limit_price,
+                extended_hours=True,
             )
         else:
             order_request: LimitOrderRequest = LimitOrderRequest(
@@ -225,7 +221,11 @@ def alpaca_submit_limit_order_custom_quantity(
                 side=order_side,
                 time_in_force=time_in_force,
                 limit_price=limit_price,
+                extended_hours=True,
             )
+
+        print("Alpaca Order End - alpaca_submit_limit_order_custom_quantity")
+        print("Limit order request:", order_request)
 
         # Create and submit the limit order
         try:
@@ -324,6 +324,7 @@ def alpaca_submit_limit_order_custom_percentage(
                 side=order_side,
                 time_in_force=time_in_force,
                 limit_price=limit_price,
+                extended_hours=True,
             )
         else:
             # For non-fractionable assets, calculate quantity using latest
@@ -349,7 +350,11 @@ def alpaca_submit_limit_order_custom_percentage(
                 side=order_side,
                 time_in_force=time_in_force,
                 limit_price=limit_price,
+                extended_hours=True,
             )
+
+        print("Alpaca Order End - alpaca_submit_limit_order_custom_percentage")
+        print("Limit order request:", order_request)
 
         # Create and submit the limit order
         try:
@@ -421,6 +426,7 @@ def alpaca_submit_market_order_custom_percentage(
                 notional=round(funds_to_deploy, 2),
                 side=order_side,
                 time_in_force=time_in_force,
+                extended_hours=True,
             )
         else:
             # For non-fractionable assets, calculate quantity using latest
@@ -445,7 +451,13 @@ def alpaca_submit_market_order_custom_percentage(
                 qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
                 side=order_side,
                 time_in_force=time_in_force,
+                extended_hours=True,
             )
+
+        print(
+            "Alpaca Order End - alpaca_submit_market_order_custom_percentage"
+        )
+        print("order_request:", order_request)
 
         # Create and submit the market order
         try:
@@ -494,12 +506,13 @@ def alpaca_submit_market_order_custom_amount(
         # Prepare order parameters
         # If fractionable, any amount will be okay rounded to 2 decimals
         if fractionable:
-            order_params: OrderRequest = OrderRequest(
+            order_request: OrderRequest = OrderRequest(
                 symbol=alpaca_symbol,
                 notional=round(funds_to_deploy, 2),
                 side=order_side,
                 type="market",
                 time_in_force=time_in_force,
+                extended_hours=True,
             )
 
         # If non fractionable, calculate the quantity available to buy from
@@ -522,18 +535,22 @@ def alpaca_submit_market_order_custom_amount(
                 )  # 3% margin of error for latest quote unreliabiity
             ) / price
 
-            order_params: OrderRequest = OrderRequest(
+            order_request: OrderRequest = OrderRequest(
                 symbol=alpaca_symbol,
                 qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
                 side=order_side,
                 type="market",
                 time_in_force=time_in_force,
+                extended_hours=True,
             )
+
+        print("Alpaca Order End - alpaca_submit_market_order_custom_amount")
+        print("Market order request:", order_request)
 
         # Create and submit the market order
         try:
             order_response = trading_client.submit_order(
-                order_data=order_params
+                order_data=order_request
             )
             print(f"Market {order_side} order submitted: \n", order_response)
         except Exception as e:
@@ -557,6 +574,8 @@ def alpaca_close_all_holdings_of_asset(
             secret_key=credentials["secret"],
             paper=credentials["paper"],
         )
+
+        print("Alpaca Order End - alpaca_close_all_holdings_of_asset")
 
         try:
             trading_client.close_position(symbol)
