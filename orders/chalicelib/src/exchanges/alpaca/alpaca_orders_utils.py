@@ -186,7 +186,7 @@ def alpaca_submit_limit_order_custom_quantity(
                 )
                 limit_price = Decimal(
                     Decimal(quote_price)
-                    + (Decimal(quote_price) * Decimal(setSlippagePercentage))
+                    - (Decimal(quote_price) * Decimal(setSlippagePercentage))
                 ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             else:
                 quote_price: Decimal = (
@@ -196,7 +196,7 @@ def alpaca_submit_limit_order_custom_quantity(
                 )
                 limit_price = Decimal(
                     Decimal(quote_price)
-                    + (Decimal(quote_price) * Decimal(setSlippagePercentage))
+                    - (Decimal(quote_price) * Decimal(setSlippagePercentage))
                 ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         # Set the order side
