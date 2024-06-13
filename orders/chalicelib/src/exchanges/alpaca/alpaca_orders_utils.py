@@ -426,7 +426,6 @@ def alpaca_submit_market_order_custom_percentage(
                 notional=round(funds_to_deploy, 2),
                 side=order_side,
                 time_in_force=time_in_force,
-                extended_hours=True,
             )
         else:
             # For non-fractionable assets, calculate quantity using latest
@@ -451,7 +450,6 @@ def alpaca_submit_market_order_custom_percentage(
                 qty=quantity.quantize(Decimal("1"), rounding=ROUND_DOWN),
                 side=order_side,
                 time_in_force=time_in_force,
-                extended_hours=True,
             )
 
         print(
@@ -512,7 +510,6 @@ def alpaca_submit_market_order_custom_amount(
                 side=order_side,
                 type="market",
                 time_in_force=time_in_force,
-                extended_hours=True,
             )
 
         # If non fractionable, calculate the quantity available to buy from
@@ -541,7 +538,6 @@ def alpaca_submit_market_order_custom_amount(
                 side=order_side,
                 type="market",
                 time_in_force=time_in_force,
-                extended_hours=True,
             )
 
         print("Alpaca Order End - alpaca_submit_market_order_custom_amount")
