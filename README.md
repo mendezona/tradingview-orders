@@ -24,12 +24,10 @@ How to start project:
 - Check pyenv-virtualenv is installed
 - python3 --version
 - Setup virtual environment in project folder
-- pyenv virtualenv 3.10.13 myenvtradingvieworders
-- pyenv activate myenvtradingvieworders
-- add this to VSCode settings.json - "python.analysis.extraPaths": [
-  "/Users/jmendezona001/.pyenv/versions/3.10.13/envs/myenvtradingvieworders/lib/python3.10/site-packages"
-  ]
-- To deactivate virtual environment - pyenv deactivate
+- pyenv shell 3.10.13
+- python -m venv myenv
+- source myenv/bin/activate
+- To deactivate virtual environment - deactivate
 - Install AWS Chalice - https://github.com/aws/chalice
 - pip install chalice
 - Install package dependencies
