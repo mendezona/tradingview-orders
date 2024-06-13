@@ -4,7 +4,12 @@
   "stages": {
     "dev": {
       "api_gateway_stage": "api",
-      "lambda_python_version": "python3.10"
+      "lambda_python_version": "python3.10",
+      "environment_variables": {
+        "AWS_LAMBDA_ENDPOINT": "<insert endpoint here>",
+        "QSTASH_URL": "<insert qstash url here>",
+        "QSTASH_TOKEN": "<insert qstash token here>"
+      }
     }
   }
 }

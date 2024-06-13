@@ -1,4 +1,8 @@
 from chalice import Chalice
+from chalice.app import Request
+from chalicelib.src.exchanges.alpaca.alpaca_cron_jobs import (
+    alpaca_schedule_price_check_at_next_interval_cron_job,
+)
 from chalicelib.src.exchanges.alpaca.alpaca_orders_utils import (
     alpaca_submit_pair_trade_order,
 )
@@ -62,6 +66,23 @@ def alpaca_pair_trade_sell_alert():
 
     return {
         "message": "alpacapairtradesellalert - alert received",
+        "tradingViewWebhookMessage": tradingViewWebhookMessage,
+    }
+
+
+@app.route("/testcronjobschedule", methods=["POST"])
+def alpaca_pair_price_check_at_next_interval():
+    request: Request | None = app.current_request
+    tradingViewWebhookMessage = request.json_body
+    print("tradingViewWebhookMessage", tradingViewWebhookMessage, "\n")
+    alpaca_schedule_price_check_at_next_interval_cron_job(
+        tradingViewWebhookMessage["ticker"],
+        tradingViewWebhookMessage["closePrice"],
+        tradingViewWebhookMessage["interval"],
+    )
+
+    return {
+        "message": "alpaca_schedule_price_check_at_next_interval_cron_job - cron job scheduled",  # noqa: E501
         "tradingViewWebhookMessage": tradingViewWebhookMessage,
     }
 
