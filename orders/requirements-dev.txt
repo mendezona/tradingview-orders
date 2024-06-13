@@ -1,5 +1,5 @@
 black
-chalice==1.29.0
+chalice
 flake8
 pytest
 pytest-mock

@@ -20,16 +20,19 @@ Dependencies:
 How to start project:
 
 - Check python 3.10 is installed
+- Check pyenv is installed
+- Check pyenv-virtualenv is installed
 - python3 --version
 - Setup virtual environment in project folder
-- python3 -m venv myenvtradingvieworders
-- . myenvtradingvieworders/bin/activate
+- pyenv virtualenv 3.10.13 myenvtradingvieworders
+- pyenv activate myenvtradingvieworders
+- To deactivate virtual environment - pyenv deactivate
 - Install AWS Chalice - https://github.com/aws/chalice
-- python3 -m pip install chalice
+- pip install chalice
 - Install package dependencies
 - cd orders
-- pip3 install -r requirements.txt
-- pip3 install -r requirements-dev.txt
+- pip install -r requirements.txt
+- pip install -r requirements-dev.txt
 - Run project locally
 - chalice local
 
