@@ -13,7 +13,7 @@ country_personal_income_tax_rate: Decimal = Decimal(0.42)
 # Used for calculating tax on stocks
 capital_gains_tax_rate: Decimal = Decimal(0.26375)
 
-capital_to_deploy_percentage: Decimal = Decimal(0.33)
+capital_to_deploy_percentage: Decimal = Decimal(1)
 
 # TradingView Constants
 tradingview_ticker: str = "ticker"
