@@ -2,6 +2,5 @@ alpaca-py
 boto3
 kucoin-python
 pybit
-pycryptodome
 qstash-python
 requests
