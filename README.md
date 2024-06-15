@@ -24,9 +24,11 @@ How to start project:
 - Check pyenv-virtualenv is installed
 - python3 --version
 - Setup virtual environment in project folder
-- pyenv virtualenv 3.10.14 chalice-orders
-- pyenv activate chalice-orders
-- Ensure that Python interpretter is set to use the interpretter in the virtual environment
+- python3.10 -m venv .vm-chalice-orders
+- To deactivate virtual environment - deactivate
+- Ensure that Python interpretter and chalice are pointing to the same binary (should be same virtual environment)
+- which python
+- which chalice
 - To deactivate virtual environment - pyenv deactivate
 - Install AWS Chalice - https://github.com/aws/chalice
 - pip install chalice
